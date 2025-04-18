@@ -157,15 +157,11 @@ final class ArrayConfig implements ConfigInterface
         $delimitersPattern = '/[' . preg_quote($delimiterChars, '/') . ']/';
 
         foreach ($config as $key => $value) {
-            if (\is_array($value)) {
-                if (!Util::isAssoc($value)) {
-                    continue;
-                }
-
+            if (\is_array($value) && Util::isAssoc($value)) {
                 $value = $this->normalizeConfig($value);
             }
 
-            if (false === strpbrk($key, $delimiterChars)) {
+            if (!\is_string($key) || false === strpbrk($key, $delimiterChars)) {
                 $normalized[$key] = $value;
 
                 continue;
