@@ -1,0 +1,57 @@
+{
+    "name": "fast-forward/config",
+    "description": "Fast Forward Config utility classes",
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Felipe Sayão Lobato Abreu",
+            "email": "github@mentordosnerds.com"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "dflydev/dot-access-data": "^3.0",
+        "laminas/laminas-config-aggregator": "^1.13",
+        "psr/simple-cache": "^3.0"
+    },
+    "require-dev": {
+        "coisa/php-cs-fixer": "^2.1",
+        "phpspec/prophecy-phpunit": "^2.3",
+        "phpunit/phpunit": "^9.6 || ^10.5 || ^11.5"
+    },
+    "minimum-stability": "stable",
+    "autoload": {
+        "files": [
+            "src/functions.php"
+        ],
+        "psr-4": {
+            "FastForward\\Config\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "FastForward\\Config\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "1.x-dev"
+        }
+    },
+    "scripts": {
+        "cs-check": "php-cs-fixer fix --dry-run --diff",
+        "cs-fix": "php-cs-fixer fix",
+        "mutation-testing": "infection --threads=4",
+        "pre-commit": [
+            "@cs-check",
+            "@static-analysis",
+            "@tests"
+        ],
+        "static-analysis": "phpstan analyse --level 5 src",
+        "tests": "phpunit --testdox"
+    }
+}
