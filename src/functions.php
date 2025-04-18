@@ -28,7 +28,7 @@ use Psr\SimpleCache\CacheInterface;
  * @return ConfigInterface the aggregated configuration instance
  */
 function config(
-    string|array|ConfigInterface ...$configs,
+    array|ConfigInterface|string ...$configs,
 ): ConfigInterface {
     foreach ($configs as $index => $config) {
         if (\is_array($config)) {

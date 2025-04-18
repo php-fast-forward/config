@@ -34,7 +34,7 @@ final class CachedConfig implements ConfigInterface
      * This constructor SHALL accept a PSR-16 cache implementation and a configuration instance
      * to be cached. It MUST defer reading and writing the configuration until invoked.
      *
-     * @param CacheInterface  $cache  the cache implementation used for storing configuration data
+     * @param CacheInterface  $cache         the cache implementation used for storing configuration data
      * @param ConfigInterface $defaultConfig the configuration source to be cached
      */
     public function __construct(

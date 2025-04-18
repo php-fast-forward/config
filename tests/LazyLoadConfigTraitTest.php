@@ -2,6 +2,17 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of php-fast-forward/config.
+ *
+ * This source file is subject to the license bundled
+ * with this source code in the file LICENSE.
+ *
+ * @link      https://github.com/php-fast-forward/config
+ * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+
 namespace FastForward\Config\Tests;
 
 use FastForward\Config\ConfigInterface;
@@ -11,75 +22,78 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Prophecy\PhpUnit\ProphecyTrait;
 
+/**
+ * @internal
+ */
 #[CoversClass(LazyLoadConfigTrait::class)]
 final class LazyLoadConfigTraitTest extends TestCase
 {
     use ProphecyTrait;
 
     #[Test]
-    public function testGetDelegatesToConfig()
+    public function testGetDelegatesToConfig(): void
     {
-        $key = uniqid('key_', true);
-        $value = uniqid('value_', true);
+        $key     = uniqid('key_', true);
+        $value   = uniqid('value_', true);
         $default = uniqid('default_', true);
 
         $fake = $this->createTestInstance([$key => $value]);
 
-        $this->assertSame($value, $fake->get($key));
-        $this->assertSame($default, $fake->get(uniqid('missing_', true), $default));
+        self::assertSame($value, $fake->get($key));
+        self::assertSame($default, $fake->get(uniqid('missing_', true), $default));
     }
 
     #[Test]
-    public function testHasReturnsExpectedResults()
+    public function testHasReturnsExpectedResults(): void
     {
         $present = uniqid('present_', true);
-        $absent = uniqid('absent_', true);
+        $absent  = uniqid('absent_', true);
 
-        $fake = $this->createTestInstance([$present => mt_rand(1, 100)]);
+        $fake = $this->createTestInstance([$present => random_int(1, 100)]);
 
-        $this->assertTrue($fake->has($present));
-        $this->assertFalse($fake->has($absent));
+        self::assertTrue($fake->has($present));
+        self::assertFalse($fake->has($absent));
     }
 
     #[Test]
-    public function testSetMergesValuesCorrectly()
+    public function testSetMergesValuesCorrectly(): void
     {
         $key1 = uniqid('x_', true);
         $key2 = uniqid('y_', true);
         $key3 = uniqid('z_', true);
-        $val1 = mt_rand(100, 200);
-        $val2 = mt_rand(201, 300);
-        $val3 = mt_rand(301, 400);
+        $val1 = random_int(100, 200);
+        $val2 = random_int(201, 300);
+        $val3 = random_int(301, 400);
 
         $fake = $this->createTestInstance([$key1 => $val1]);
 
         $fake->set([$key2 => $val2]);
 
-        $this->assertSame([$key1 => $val1, $key2 => $val2], $fake->toArray());
+        self::assertSame([$key1 => $val1, $key2 => $val2], $fake->toArray());
 
         $fake->set($key3, $val3);
 
-        $this->assertSame([$key1 => $val1, $key2 => $val2, $key3 => $val3], $fake->toArray());
+        self::assertSame([$key1 => $val1, $key2 => $val2, $key3 => $val3], $fake->toArray());
     }
 
     #[Test]
-    public function testToArrayAndIteratorAreConsistent()
+    public function testToArrayAndIteratorAreConsistent(): void
     {
-        $a = uniqid('a_', true);
-        $b = uniqid('b_', true);
-        $v1 = mt_rand(1, 50);
-        $v2 = mt_rand(51, 100);
+        $a  = uniqid('a_', true);
+        $b  = uniqid('b_', true);
+        $v1 = random_int(1, 50);
+        $v2 = random_int(51, 100);
 
         $fake = $this->createTestInstance([$a => $v1, $b => $v2]);
 
-        $this->assertSame([$a => $v1, $b => $v2], $fake->toArray());
+        self::assertSame([$a => $v1, $b => $v2], $fake->toArray());
 
         $collected = [];
         foreach ($fake->getIterator() as $k => $v) {
             $collected[$k] = $v;
         }
 
-        $this->assertSame($fake->toArray(), $collected);
+        self::assertSame($fake->toArray(), $collected);
     }
 
     private function createTestInstance(array $data): ConfigInterface
@@ -101,12 +115,12 @@ final class LazyLoadConfigTraitTest extends TestCase
 
                     public function has(string $key): bool
                     {
-                        return array_key_exists($key, $this->items);
+                        return \array_key_exists($key, $this->items);
                     }
 
-                    public function set(array|string|ConfigInterface $key, mixed $value = null): void
+                    public function set(array|ConfigInterface|string $key, mixed $value = null): void
                     {
-                        if (is_string($key)) {
+                        if (\is_string($key)) {
                             $this->items[$key] = $value;
                         } elseif ($key instanceof ConfigInterface) {
                             $this->items = [...$this->items, ...$key->toArray()];

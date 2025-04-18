@@ -2,6 +2,17 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of php-fast-forward/config.
+ *
+ * This source file is subject to the license bundled
+ * with this source code in the file LICENSE.
+ *
+ * @link      https://github.com/php-fast-forward/config
+ * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+
 namespace FastForward\Config\Tests;
 
 use FastForward\Config\AggregateConfig;
@@ -20,11 +31,15 @@ use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 use Psr\SimpleCache\CacheInterface;
+
 use function FastForward\Config\config;
 use function FastForward\Config\configCache;
 use function FastForward\Config\configDir;
 use function FastForward\Config\configProvider;
 
+/**
+ * @internal
+ */
 #[CoversFunction('FastForward\Config\config')]
 #[CoversFunction('FastForward\Config\configCache')]
 #[CoversFunction('FastForward\Config\configDir')]
@@ -41,29 +56,29 @@ final class FunctionsTest extends TestCase
     use ProphecyTrait;
 
     #[Test]
-    public function testConfigAcceptsArrayAndReturnsAggregateConfig()
+    public function testConfigAcceptsArrayAndReturnsAggregateConfig(): void
     {
-        $data = [uniqid('key_') => uniqid('val_')];
+        $data   = [uniqid('key_') => uniqid('val_')];
         $result = config($data);
 
-        $this->assertInstanceOf(ConfigInterface::class, $result);
-        $this->assertSame($data, $result->toArray());
+        self::assertInstanceOf(ConfigInterface::class, $result);
+        self::assertSame($data, $result->toArray());
     }
 
     #[Test]
-    public function testConfigAcceptsInvokableClassName()
+    public function testConfigAcceptsInvokableClassName(): void
     {
         $result = config(ConfigProvider::class);
 
-        $this->assertInstanceOf(ConfigInterface::class, $result);
-        $this->assertSame(['key' => 'value'], $result->toArray());
+        self::assertInstanceOf(ConfigInterface::class, $result);
+        self::assertSame(['key' => 'value'], $result->toArray());
     }
 
     #[Test]
-    public function testConfigCacheWrapsConfigWithCache()
+    public function testConfigCacheWrapsConfigWithCache(): void
     {
         $cache = $this->prophesize(CacheInterface::class);
-        $data = [uniqid() => uniqid()];
+        $data  = [uniqid() => uniqid()];
 
         $cache->has(Argument::type('string'))->willReturn(false);
         $cache->set(Argument::type('string'), $data)->shouldBeCalledOnce();
@@ -71,31 +86,31 @@ final class FunctionsTest extends TestCase
 
         $config = configCache($cache->reveal(), $data);
 
-        $this->assertInstanceOf(CachedConfig::class, $config);
-        $this->assertInstanceOf(ConfigInterface::class, $config());
+        self::assertInstanceOf(CachedConfig::class, $config);
+        self::assertInstanceOf(ConfigInterface::class, $config());
     }
 
     #[Test]
-    public function testConfigDirReturnsExpectedInstance()
+    public function testConfigDirReturnsExpectedInstance(): void
     {
-        $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('config_', true);
+        $dir = sys_get_temp_dir() . \DIRECTORY_SEPARATOR . uniqid('config_', true);
         mkdir($dir);
         file_put_contents($dir . '/test.php', '<?php return ["env" => "test"];');
 
         $config = configDir($dir, false);
 
-        $this->assertInstanceOf(DirectoryConfig::class, $config);
+        self::assertInstanceOf(DirectoryConfig::class, $config);
 
         $recursive = configDir($dir, true);
 
-        $this->assertInstanceOf(RecursiveDirectoryConfig::class, $recursive);
+        self::assertInstanceOf(RecursiveDirectoryConfig::class, $recursive);
 
         unlink($dir . '/test.php');
         rmdir($dir);
     }
 
     #[Test]
-    public function testConfigProviderReturnsExpectedImplementation()
+    public function testConfigProviderReturnsExpectedImplementation(): void
     {
         $provider = new class {
             public function __invoke(): array
@@ -106,7 +121,7 @@ final class FunctionsTest extends TestCase
 
         $config = configProvider([$provider]);
 
-        $this->assertInstanceOf(LamiasConfigAggregatorConfig::class, $config);
-        $this->assertSame(['foo' => 'bar'], $config->toArray());
+        self::assertInstanceOf(LamiasConfigAggregatorConfig::class, $config);
+        self::assertSame(['foo' => 'bar'], $config->toArray());
     }
 }
