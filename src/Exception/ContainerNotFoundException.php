@@ -18,12 +18,12 @@ namespace FastForward\Config\Exception;
 use Psr\Container\NotFoundExceptionInterface;
 
 /**
- * Class ContainerNotFoundExceptionInterface.
+ * Class ContainerNotFoundException.
  *
  * Exception thrown when a configuration key is not found in the container.
  * This class MUST implement the PSR-11 NotFoundExceptionInterface.
  */
-final class ContainerNotFoundExceptionInterface extends \Exception implements NotFoundExceptionInterface
+final class ContainerNotFoundException extends \Exception implements NotFoundExceptionInterface
 {
     /**
      * Creates a new exception instance for a missing configuration key.

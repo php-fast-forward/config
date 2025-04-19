@@ -16,7 +16,7 @@ declare(strict_types=1);
 namespace FastForward\Config\Container;
 
 use FastForward\Config\ConfigInterface;
-use FastForward\Config\Exception\ContainerNotFoundExceptionInterface;
+use FastForward\Config\Exception\ContainerNotFoundException;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -63,13 +63,13 @@ final class ConfigContainer implements ContainerInterface
      *
      * If the ID matches the container itself or the config class, it SHALL return itself.
      * Otherwise, it SHALL retrieve the value from the configuration.
-     * If the key is not found, it MUST throw a ContainerNotFoundExceptionInterface.
+     * If the key is not found, it MUST throw a ContainerNotFoundException.
      *
      * @param string $id identifier of the entry to retrieve
      *
      * @return mixed the value associated with the identifier
      *
-     * @throws ContainerNotFoundExceptionInterface if the identifier is not found
+     * @throws ContainerNotFoundException if the identifier is not found
      */
     public function get(string $id)
     {
@@ -81,7 +81,7 @@ final class ConfigContainer implements ContainerInterface
             return $this->config->get($id);
         }
 
-        throw ContainerNotFoundExceptionInterface::forKey($id);
+        throw ContainerNotFoundException::forKey($id);
     }
 
     /**

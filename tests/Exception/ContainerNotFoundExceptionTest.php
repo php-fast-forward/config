@@ -15,7 +15,7 @@ declare(strict_types=1);
 
 namespace FastForward\Config\Tests\Exception;
 
-use FastForward\Config\Exception\ContainerNotFoundExceptionInterface;
+use FastForward\Config\Exception\ContainerNotFoundException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -24,17 +24,17 @@ use Psr\Container\NotFoundExceptionInterface;
 /**
  * @internal
  */
-#[CoversClass(ContainerNotFoundExceptionInterface::class)]
-final class ContainerNotFoundExceptionInterfaceTest extends TestCase
+#[CoversClass(ContainerNotFoundException::class)]
+final class ContainerNotFoundExceptionTest extends TestCase
 {
     #[Test]
     public function testForKeyReturnsExpectedMessage(): void
     {
         $key = uniqid('missing_', true);
 
-        $exception = ContainerNotFoundExceptionInterface::forKey($key);
+        $exception = ContainerNotFoundException::forKey($key);
 
-        self::assertInstanceOf(ContainerNotFoundExceptionInterface::class, $exception);
+        self::assertInstanceOf(ContainerNotFoundException::class, $exception);
         self::assertInstanceOf(NotFoundExceptionInterface::class, $exception);
         self::assertSame(\sprintf('Config key "%s" not found.', $key), $exception->getMessage());
     }

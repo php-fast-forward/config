@@ -18,7 +18,7 @@ namespace FastForward\Config\Tests\Container;
 use FastForward\Config\ArrayConfig;
 use FastForward\Config\ConfigInterface;
 use FastForward\Config\Container\ConfigContainer;
-use FastForward\Config\Exception\ContainerNotFoundExceptionInterface;
+use FastForward\Config\Exception\ContainerNotFoundException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -29,7 +29,7 @@ use PHPUnit\Framework\TestCase;
  */
 #[CoversClass(ConfigContainer::class)]
 #[UsesClass(ArrayConfig::class)]
-#[UsesClass(ContainerNotFoundExceptionInterface::class)]
+#[UsesClass(ContainerNotFoundException::class)]
 final class ConfigContainerTest extends TestCase
 {
     #[Test]
@@ -90,7 +90,7 @@ final class ConfigContainerTest extends TestCase
     #[Test]
     public function testGetThrowsExceptionForUnknownKey(): void
     {
-        $this->expectException(ContainerNotFoundExceptionInterface::class);
+        $this->expectException(ContainerNotFoundException::class);
 
         $config    = new ArrayConfig();
         $container = new ConfigContainer($config);
