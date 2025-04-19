@@ -19,7 +19,7 @@
 ## 📦 Installation
 
 ```bash
-composer require php-fast-forward/config
+composer require fast-forward/config
 ```
 
 ---
