@@ -9,6 +9,11 @@
             "email": "github@mentordosnerds.com"
         }
     ],
+    "homepage": "https://github.com/php-fast-forward",
+    "support": {
+        "issues": "https://github.com/php-fast-forward/config/issues",
+        "source": "https://github.com/php-fast-forward/config"
+    },
     "require": {
         "php": "^8.1",
         "dflydev/dot-access-data": "^3.0",
