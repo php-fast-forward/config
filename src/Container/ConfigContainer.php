@@ -73,8 +73,12 @@ final class ConfigContainer implements ContainerInterface
      */
     public function get(string $id)
     {
-        if ($this->isResolvedByContainer($id)) {
+        if ($id === self::class) {
             return $this;
+        }
+
+        if ($this->isResolvedByContainer($id)) {
+            return $this->config;
         }
 
         if ($this->config->has($id)) {
