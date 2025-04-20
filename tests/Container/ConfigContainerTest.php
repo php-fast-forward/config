@@ -52,7 +52,7 @@ final class ConfigContainerTest extends TestCase
         $config    = new ArrayConfig([$key => $value]);
         $container = new ConfigContainer($config);
 
-        self::assertTrue($container->has($key));
+        self::assertTrue($container->has(ConfigContainer::ALIAS . '.' . $key));
     }
 
     #[Test]
@@ -70,9 +70,9 @@ final class ConfigContainerTest extends TestCase
         $config    = new ArrayConfig();
         $container = new ConfigContainer($config);
 
-        self::assertSame($container, $container->get(ConfigContainer::ALIAS));
-        self::assertSame($container, $container->get(ConfigInterface::class));
-        self::assertSame($container, $container->get($config::class));
+        self::assertSame($config, $container->get(ConfigContainer::ALIAS));
+        self::assertSame($config, $container->get(ConfigInterface::class));
+        self::assertSame($config, $container->get($config::class));
     }
 
     #[Test]
@@ -84,7 +84,7 @@ final class ConfigContainerTest extends TestCase
         $config    = new ArrayConfig([$key => $value]);
         $container = new ConfigContainer($config);
 
-        self::assertSame($value, $container->get($key));
+        self::assertSame($value, $container->get(ConfigContainer::ALIAS . '.' . $key));
     }
 
     #[Test]
