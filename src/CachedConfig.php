@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace FastForward\Config;
 
 use Psr\SimpleCache\CacheInterface;
+use Psr\SimpleCache\InvalidArgumentException;
 
 /**
  * Class CachedConfig.
@@ -36,25 +37,54 @@ final class CachedConfig implements ConfigInterface
      *
      * @param CacheInterface  $cache         the cache implementation used for storing configuration data
      * @param ConfigInterface $defaultConfig the configuration source to be cached
+     * @param bool            $persistent    whether the cache should be persistent or not
+     * @param string|null     $cacheKey      the cache key to use for storing the configuration data
      */
     public function __construct(
         private readonly CacheInterface $cache,
         private readonly ConfigInterface $defaultConfig,
-    ) {}
+        private readonly bool $persistent = false,
+        private ?string $cacheKey = null,
+    ) {
+        $this->cacheKey ??= $this->defaultConfig::class;
+    }
 
     /**
      * Invokes the configuration and returns the cached configuration data.
      *
      * If the configuration has not yet been cached, it MUST be stored in the cache upon first invocation.
+     * This method MUST return a ConfigInterface implementation containing the cached configuration data.
+     *
+     * @throws InvalidArgumentException if the cache key is invalid
      *
      * @return ConfigInterface a ConfigInterface implementation containing the cached configuration data
      */
     public function __invoke(): ConfigInterface
     {
-        if (!$this->cache->has($this->defaultConfig::class)) {
-            $this->cache->set($this->defaultConfig::class, $this->defaultConfig->toArray());
+        if (!$this->cache->has($this->cacheKey)) {
+            $this->cache->set($this->cacheKey, $this->defaultConfig->toArray());
         }
 
-        return new ArrayConfig($this->cache->get($this->defaultConfig::class));
+        return new ArrayConfig($this->cache->get($this->cacheKey));
+    }
+
+    /**
+     * Sets configuration data.
+     *
+     * This method MUST update the cached configuration data in the cache if the persistent flag is set to true.
+     *
+     * @param array|ConfigInterface|string $key   the configuration key or an array of key-value pairs to set
+     * @param mixed                        $value the value to set for the specified key
+     *
+     * @throws InvalidArgumentException if the key is invalid
+     */
+    public function set(array|ConfigInterface|string $key, mixed $value = null): void
+    {
+        $config = $this->getConfig();
+        $config->set($key, $value);
+
+        if ($this->persistent) {
+            $this->cache->set($this->cacheKey, $config->toArray());
+        }
     }
 }

@@ -20,7 +20,7 @@ use FastForward\Config\Exception\ContainerNotFoundException;
 use Psr\Container\ContainerInterface;
 
 /**
- * Class ConfigContainer
+ * Class ConfigContainer.
  *
  * Provides a PSR-11 compatible container interface for accessing configuration values.
  *
@@ -45,7 +45,7 @@ final class ConfigContainer implements ContainerInterface
      * This constructor SHALL wrap an existing ConfigInterface instance and expose it
      * through PSR-11 `get()` and `has()` methods with namespace-style key resolution.
      *
-     * @param ConfigInterface $config The configuration instance to expose as a container.
+     * @param ConfigInterface $config the configuration instance to expose as a container
      */
     public function __construct(
         private ConfigInterface $config,
@@ -58,8 +58,9 @@ final class ConfigContainer implements ContainerInterface
      * - The identifier matches known internal bindings (alias, interface, or class).
      * - The identifier is prefixed with 'config' and corresponds to an existing key in the configuration.
      *
-     * @param string $id Identifier of the entry to look for.
-     * @return bool True if the entry can be resolved; false otherwise.
+     * @param string $id identifier of the entry to look for
+     *
+     * @return bool true if the entry can be resolved; false otherwise
      */
     public function has(string $id): bool
     {
@@ -84,10 +85,11 @@ final class ConfigContainer implements ContainerInterface
      *   If the configuration key exists, its value SHALL be returned.
      * - If the identifier cannot be resolved, a ContainerNotFoundException MUST be thrown.
      *
-     * @param string $id Identifier of the entry to retrieve.
-     * @return mixed The value associated with the identifier.
+     * @param string $id identifier of the entry to retrieve
      *
-     * @throws ContainerNotFoundException If the identifier cannot be resolved.
+     * @return mixed the value associated with the identifier
+     *
+     * @throws ContainerNotFoundException if the identifier cannot be resolved
      */
     public function get(string $id)
     {
@@ -118,8 +120,9 @@ final class ConfigContainer implements ContainerInterface
      * - the ConfigInterface::class string
      * - the concrete class of the injected configuration instance
      *
-     * @param string $id The identifier to check.
-     * @return bool True if the identifier is resolved internally; false otherwise.
+     * @param string $id the identifier to check
+     *
+     * @return bool true if the identifier is resolved internally; false otherwise
      */
     private function isResolvedByContainer(string $id): bool
     {

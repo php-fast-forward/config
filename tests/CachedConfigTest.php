@@ -2,17 +2,6 @@
 
 declare(strict_types=1);
 
-/**
- * This file is part of php-fast-forward/config.
- *
- * This source file is subject to the license bundled
- * with this source code in the file LICENSE.
- *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
- * @license   https://opensource.org/licenses/MIT MIT License
- */
-
 namespace FastForward\Config\Tests;
 
 use FastForward\Config\ArrayConfig;
@@ -26,9 +15,6 @@ use Prophecy\PhpUnit\ProphecyTrait;
 use Prophecy\Prophecy\ObjectProphecy;
 use Psr\SimpleCache\CacheInterface;
 
-/**
- * @internal
- */
 #[CoversClass(CachedConfig::class)]
 #[UsesClass(ArrayConfig::class)]
 final class CachedConfigTest extends TestCase
@@ -49,6 +35,7 @@ final class CachedConfigTest extends TestCase
         $this->cachedConfig = new CachedConfig(
             cache: $this->cache->reveal(),
             defaultConfig: $this->defaultConfig->reveal(),
+            persistent: true
         );
     }
 
@@ -81,5 +68,42 @@ final class CachedConfigTest extends TestCase
 
         self::assertInstanceOf(ArrayConfig::class, $result);
         self::assertSame($data, $result->toArray());
+    }
+
+    #[Test]
+    public function testSetWillUpdateCacheWhenPersistentIsTrue(): void
+    {
+        $key   = uniqid();
+        $value = uniqid();
+        $data  = [$key => $value];
+
+        $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
+        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([]);
+
+        $this->cache->set($this->defaultConfig->reveal()::class, $data)->shouldBeCalled();
+
+        $this->cachedConfig->set($key, $value);
+
+        self::assertSame($value, $this->cachedConfig->get($key));
+    }
+
+    #[Test]
+    public function testSetWillNotUpdateCacheWhenPersistentIsFalse(): void
+    {
+        $cachedConfig = new CachedConfig(
+            cache: $this->cache->reveal(),
+            defaultConfig: $this->defaultConfig->reveal(),
+            persistent: false
+        );
+
+        $key   = uniqid();
+        $value = uniqid();
+
+        $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
+        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([]);
+
+        $this->cache->set($this->defaultConfig->reveal()::class, [$key => $value])->shouldNotBeCalled();
+
+        $cachedConfig->set($key, $value);
     }
 }

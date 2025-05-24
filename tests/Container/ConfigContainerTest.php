@@ -97,4 +97,13 @@ final class ConfigContainerTest extends TestCase
 
         $container->get(uniqid('unknown_', true));
     }
+
+    #[Test]
+    public function testGetWithConfigContainerWillReturnConfigContainer(): void
+    {
+        $config    = new ArrayConfig();
+        $container = new ConfigContainer($config);
+
+        self::assertSame($container, $container->get(ConfigContainer::class));
+    }
 }
