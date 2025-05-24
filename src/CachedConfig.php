@@ -38,7 +38,7 @@ final class CachedConfig implements ConfigInterface
      * @param CacheInterface  $cache         the cache implementation used for storing configuration data
      * @param ConfigInterface $defaultConfig the configuration source to be cached
      * @param bool            $persistent    whether the cache should be persistent or not
-     * @param string|null     $cacheKey      the cache key to use for storing the configuration data
+     * @param null|string     $cacheKey      the cache key to use for storing the configuration data
      */
     public function __construct(
         private readonly CacheInterface $cache,
@@ -55,9 +55,9 @@ final class CachedConfig implements ConfigInterface
      * If the configuration has not yet been cached, it MUST be stored in the cache upon first invocation.
      * This method MUST return a ConfigInterface implementation containing the cached configuration data.
      *
-     * @throws InvalidArgumentException if the cache key is invalid
-     *
      * @return ConfigInterface a ConfigInterface implementation containing the cached configuration data
+     *
+     * @throws InvalidArgumentException if the cache key is invalid
      */
     public function __invoke(): ConfigInterface
     {

@@ -19,6 +19,7 @@ use FastForward\Config\ArrayConfig;
 use FastForward\Config\ConfigInterface;
 use FastForward\Config\Container\ConfigContainer;
 use FastForward\Config\Exception\ContainerNotFoundException;
+use FastForward\Config\Helper\ConfigHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -29,6 +30,7 @@ use PHPUnit\Framework\TestCase;
  */
 #[CoversClass(ConfigContainer::class)]
 #[UsesClass(ArrayConfig::class)]
+#[UsesClass(ConfigHelper::class)]
 #[UsesClass(ContainerNotFoundException::class)]
 final class ConfigContainerTest extends TestCase
 {

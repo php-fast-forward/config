@@ -20,6 +20,7 @@ use FastForward\Config\ArrayConfig;
 use FastForward\Config\CachedConfig;
 use FastForward\Config\ConfigInterface;
 use FastForward\Config\DirectoryConfig;
+use FastForward\Config\Helper\ConfigHelper;
 use FastForward\Config\LamiasConfigAggregatorConfig;
 use FastForward\Config\LazyLoadConfigTrait;
 use FastForward\Config\RecursiveDirectoryConfig;
@@ -46,6 +47,7 @@ use function FastForward\Config\configProvider;
 #[CoversFunction('FastForward\Config\configProvider')]
 #[UsesClass(AggregateConfig::class)]
 #[UsesClass(ArrayConfig::class)]
+#[UsesClass(ConfigHelper::class)]
 #[UsesClass(CachedConfig::class)]
 #[UsesClass(DirectoryConfig::class)]
 #[UsesClass(RecursiveDirectoryConfig::class)]
@@ -123,5 +125,23 @@ final class FunctionsTest extends TestCase
 
         self::assertInstanceOf(LamiasConfigAggregatorConfig::class, $config);
         self::assertSame(['foo' => 'bar'], $config->toArray());
+    }
+
+    #[Test]
+    public function testConfigWillLoadDirectoryWhenStringIsDirectory(): void
+    {
+        $directory = sys_get_temp_dir() . '/config_test_' . uniqid();
+        mkdir($directory);
+
+        $filePath = $directory . '/config.php';
+        file_put_contents($filePath, '<?php return ["foo" => "bar"];');
+
+        $result = config($directory);
+
+        self::assertInstanceOf(ConfigInterface::class, $result);
+        self::assertSame('bar', $result->get('foo'));
+
+        unlink($filePath);
+        rmdir($directory);
     }
 }

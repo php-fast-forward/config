@@ -16,8 +16,8 @@ declare(strict_types=1);
 namespace FastForward\Config;
 
 use Dflydev\DotAccessData\Data;
-use Dflydev\DotAccessData\Util;
 use FastForward\Config\Exception\InvalidArgumentException;
+use FastForward\Config\Helper\ConfigHelper;
 
 /**
  * Class ArrayConfig.
@@ -44,7 +44,9 @@ final class ArrayConfig implements ConfigInterface
      */
     public function __construct(array $config = [])
     {
-        $this->data = new Data(data: $this->normalizeConfig($config));
+        $this->data = new Data(
+            data: ConfigHelper::normalize($config),
+        );
     }
 
     /**
@@ -74,7 +76,7 @@ final class ArrayConfig implements ConfigInterface
     {
         $value = $this->data->get($key, $default);
 
-        if (\is_array($value) && Util::isAssoc($value)) {
+        if (ConfigHelper::isAssoc($value)) {
             return new self($value);
         }
 
@@ -106,23 +108,23 @@ final class ArrayConfig implements ConfigInterface
             $key = $key->toArray();
         }
 
-        if (Util::isAssoc($key)) {
-            $key = $this->normalizeConfig($key);
-        }
-
-        $this->data->import($key);
+        $this->data->import(ConfigHelper::normalize($key));
     }
 
     /**
-     * Retrieves an iterator for traversing configuration data.
+     * Retrieves a traversable set of flattened configuration data.
      *
-     * This method SHALL provide recursive array iteration.
+     * This method SHALL return an iterator where each key represents
+     * the nested path in dot notation, and each value is the corresponding value.
      *
-     * @return \Traversable a recursive array iterator instance
+     * For example:
+     * ['database' => ['host' => 'localhost']] becomes ['database.host' => 'localhost'].
+     *
+     * @return \Traversable<string, mixed> an iterator of flattened key-value pairs
      */
     public function getIterator(): \Traversable
     {
-        return new \RecursiveArrayIterator($this->toArray());
+        return ConfigHelper::flatten($this->toArray());
     }
 
     /**
@@ -135,62 +137,5 @@ final class ArrayConfig implements ConfigInterface
     public function toArray(): array
     {
         return $this->data->export();
-    }
-
-    /**
-     * Normalizes a configuration array using dot notation delimiters.
-     *
-     * The method SHALL recursively parse keys containing delimiters and convert them into nested arrays.
-     *
-     * @param array $config the configuration array to normalize
-     *
-     * @return array the normalized configuration array
-     */
-    private function normalizeConfig(array $config): array
-    {
-        $normalized = [];
-
-        $reflectionConst = new \ReflectionClassConstant(Data::class, 'DELIMITERS');
-        $delimiters      = $reflectionConst->getValue();
-
-        $delimiterChars    = implode('', $delimiters);
-        $delimitersPattern = '/[' . preg_quote($delimiterChars, '/') . ']/';
-
-        foreach ($config as $key => $value) {
-            if (\is_array($value) && Util::isAssoc($value)) {
-                $value = $this->normalizeConfig($value);
-            }
-
-            if (!\is_string($key) || false === strpbrk($key, $delimiterChars)) {
-                $normalized[$key] = $value;
-
-                continue;
-            }
-
-            $parts     = preg_split($delimitersPattern, $key);
-            $current   = &$normalized;
-            $lastIndex = \count($parts) - 1;
-
-            foreach ($parts as $index => $part) {
-                if ($index !== $lastIndex) {
-                    if (!isset($current[$part]) || !\is_array($current[$part])) {
-                        $current[$part] = [];
-                    }
-                    $current = &$current[$part];
-
-                    continue;
-                }
-
-                if (isset($current[$part]) && \is_array($current[$part]) && \is_array($value)) {
-                    $current[$part] = Util::mergeAssocArray($current[$part], $value, Data::MERGE);
-
-                    continue;
-                }
-
-                $current[$part] = $value;
-            }
-        }
-
-        return $normalized;
     }
 }

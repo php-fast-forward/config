@@ -18,6 +18,7 @@ namespace FastForward\Config\Tests;
 use FastForward\Config\AggregateConfig;
 use FastForward\Config\ArrayConfig;
 use FastForward\Config\ConfigInterface;
+use FastForward\Config\Helper\ConfigHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -29,6 +30,7 @@ use Prophecy\PhpUnit\ProphecyTrait;
  */
 #[CoversClass(AggregateConfig::class)]
 #[UsesClass(ArrayConfig::class)]
+#[UsesClass(ConfigHelper::class)]
 final class AggregateConfigTest extends TestCase
 {
     use ProphecyTrait;

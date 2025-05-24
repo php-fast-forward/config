@@ -17,6 +17,7 @@ namespace FastForward\Config\Tests;
 
 use FastForward\Config\ArrayConfig;
 use FastForward\Config\Exception\InvalidArgumentException;
+use FastForward\Config\Helper\ConfigHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -26,6 +27,7 @@ use PHPUnit\Framework\TestCase;
  * @internal
  */
 #[CoversClass(ArrayConfig::class)]
+#[UsesClass(ConfigHelper::class)]
 #[UsesClass(InvalidArgumentException::class)]
 final class ArrayConfigTest extends TestCase
 {
