@@ -24,6 +24,8 @@ namespace FastForward\Config;
  */
 trait LazyLoadConfigTrait
 {
+    use ArrayAccessConfigTrait;
+
     /**
      * @var null|ConfigInterface holds the loaded configuration instance
      */
@@ -70,6 +72,16 @@ trait LazyLoadConfigTrait
     public function set(array|ConfigInterface|string $key, mixed $value = null): void
     {
         $this->getConfig()->set($key, $value);
+    }
+
+    /**
+     * Removes a configuration key.
+     *
+     * @param string $key the configuration key to remove
+     */
+    public function remove(string $key): void
+    {
+        $this->getConfig()->remove($key);
     }
 
     /**

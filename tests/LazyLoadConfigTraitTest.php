@@ -15,9 +15,10 @@ declare(strict_types=1);
 
 namespace FastForward\Config\Tests;
 
+use FastForward\Config\ArrayAccessConfigTrait;
 use FastForward\Config\ConfigInterface;
 use FastForward\Config\LazyLoadConfigTrait;
-use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Prophecy\PhpUnit\ProphecyTrait;
@@ -25,7 +26,7 @@ use Prophecy\PhpUnit\ProphecyTrait;
 /**
  * @internal
  */
-#[CoversClass(LazyLoadConfigTrait::class)]
+#[CoversTrait(LazyLoadConfigTrait::class)]
 final class LazyLoadConfigTraitTest extends TestCase
 {
     use ProphecyTrait;
@@ -41,6 +42,25 @@ final class LazyLoadConfigTraitTest extends TestCase
 
         self::assertSame($value, $fake->get($key));
         self::assertSame($default, $fake->get(uniqid('missing_', true), $default));
+    }
+
+    #[Test]
+    public function testRemoveRemovesFromConfig(): void
+    {
+        $key1 = uniqid('key1_', true);
+        $key2 = uniqid('key2_', true);
+        $val1 = random_int(1, 100);
+        $val2 = random_int(101, 200);
+
+        $fake = $this->createTestInstance([$key1 => $val1, $key2 => $val2]);
+
+        self::assertTrue($fake->has($key1));
+        self::assertTrue($fake->has($key2));
+
+        $fake->remove($key1);
+
+        self::assertFalse($fake->has($key1));
+        self::assertTrue($fake->has($key2));
     }
 
     #[Test]
@@ -106,6 +126,8 @@ final class LazyLoadConfigTraitTest extends TestCase
             public function __invoke(): ConfigInterface
             {
                 return new class($this->data) implements ConfigInterface {
+                    use ArrayAccessConfigTrait;
+
                     public function __construct(private array $items) {}
 
                     public function get(string $key, mixed $default = null): mixed
@@ -126,6 +148,13 @@ final class LazyLoadConfigTraitTest extends TestCase
                             $this->items = [...$this->items, ...$key->toArray()];
                         } else {
                             $this->items = [...$this->items, ...$key];
+                        }
+                    }
+
+                    public function remove(string $key): void
+                    {
+                        if ($this->has($key)) {
+                            unset($this->items[$key]);
                         }
                     }
 

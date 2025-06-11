@@ -30,6 +30,8 @@ use FastForward\Config\Helper\ConfigHelper;
  */
 final class ArrayConfig implements ConfigInterface
 {
+    use ArrayAccessConfigTrait;
+
     /**
      * @var Data internal configuration storage instance
      */
@@ -109,6 +111,20 @@ final class ArrayConfig implements ConfigInterface
         }
 
         $this->data->import(ConfigHelper::normalize($key));
+    }
+
+    /**
+     * Removes a configuration key and its associated value.
+     *
+     * If the key does not exist, this method SHALL do nothing.
+     *
+     * @param string $key the configuration key to remove
+     */
+    public function remove(string $key): void
+    {
+        if ($this->has($key)) {
+            $this->data->remove($key);
+        }
     }
 
     /**

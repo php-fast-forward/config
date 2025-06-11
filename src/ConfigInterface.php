@@ -27,7 +27,7 @@ namespace FastForward\Config;
  * Keys MAY use dot notation to access nested structures, e.g., `my.next.key`
  * corresponds to ['my' => ['next' => ['key' => $value]]].
  */
-interface ConfigInterface extends \IteratorAggregate
+interface ConfigInterface extends \IteratorAggregate, \ArrayAccess
 {
     /**
      * Determines if the specified key exists in the configuration.
@@ -67,6 +67,16 @@ interface ConfigInterface extends \IteratorAggregate
      * @param null|mixed        $value the value to assign, if a key is provided
      */
     public function set(array|self|string $key, mixed $value = null): void;
+
+    /**
+     * Removes a configuration key and its associated value.
+     *
+     * Dot notation MAY be used to specify nested keys.
+     * If the key does not exist, this method MUST do nothing.
+     *
+     * @param string $key the configuration key to remove
+     */
+    public function remove(string $key): void;
 
     /**
      * Exports the configuration as a nested associative array.

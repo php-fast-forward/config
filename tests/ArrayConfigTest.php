@@ -144,4 +144,48 @@ final class ArrayConfigTest extends TestCase
 
         self::assertSame($expected, $config->toArray());
     }
+
+    #[Test]
+    public function testRemoveKeyRemovesTopLevelKeys(): void
+    {
+        $key = uniqid('key_');
+        $val = uniqid('value_');
+
+        $config = new ArrayConfig([$key => $val]);
+        $config->remove($key);
+
+        self::assertFalse($config->has($key));
+        self::assertSame([], $config->toArray());
+    }
+
+    #[Test]
+    public function testRemoveKeyRemovesNestedKeys(): void
+    {
+        $key1 = uniqid('key1.');
+        $key2 = $key1 . 'nested';
+        $val  = uniqid('value_');
+
+        $config = new ArrayConfig([$key2 => $val]);
+        $config->remove($key2);
+
+        self::assertFalse($config->has($key2));
+        self::assertSame(['key1' => []], $config->toArray());
+    }
+
+    #[Test]
+    public function testRemoveKeyRemovesDeepNestedKeys(): void
+    {
+        $key1 = uniqid('key1.');
+        $key2 = $key1 . '.nested.';
+        $key3 = $key2 . 'deep';
+        $val  = uniqid('value_');
+
+        $config = new ArrayConfig([$key3 => $val]);
+        $config->remove($key3);
+
+        $config2 = new ArrayConfig([$key1 => ['nested' => []]]);
+
+        self::assertFalse($config->has($key3));
+        self::assertSame($config2->toArray(), $config->toArray());
+    }
 }

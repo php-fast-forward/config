@@ -1,0 +1,78 @@
+name: Run PHPUnit Tests
+
+on:
+    workflow_dispatch:
+    pull_request:
+    push:
+        branches: [ "main" ]
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+concurrency:
+    group: "pages"
+    cancel-in-progress: false
+
+jobs:
+    tests:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Cache Composer dependencies
+              uses: actions/cache@v3
+              with:
+                  path: /tmp/composer-cache
+                  key: ${{ runner.os }}-${{ hashFiles('**/composer.lock') }}
+
+            - name: Install dependencies
+              uses: php-actions/composer@v6
+              env:
+                  COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ github.token }}"} }'
+              with:
+                  php_version: '8.4'
+
+            - name: Run PHPUnit tests
+              uses: php-actions/phpunit@v3
+              env:
+                  XDEBUG_MODE: coverage
+              with:
+                  php_version: '8.4'
+                  php_extensions: pcov
+
+            - name: Ensure minimum code coverage
+              env:
+                  MINIMUM_COVERAGE: 80
+              run: |
+                  COVERAGE=$(php -r '
+                      $xml = new SimpleXMLElement(file_get_contents("public/coverage/clover.xml"));
+                      $m   = $xml->project->metrics;
+                      $pct = (int) round(((int) $m["coveredstatements"]) * 100 / (int) $m["statements"]);
+                      echo $pct;
+                  ')
+                  echo "Coverage: ${COVERAGE}%"
+                  if [ "${COVERAGE}" -lt ${{ env.MINIMUM_COVERAGE }} ]; then
+                    echo "Code coverage below ${{ env.MINIMUM_COVERAGE }}% threshold."
+                    exit 1
+                  fi
+
+            - name: Upload artifact
+              if: github.ref == 'refs/heads/main'
+              uses: actions/upload-pages-artifact@v3
+              with:
+                  path: public/coverage
+
+    deploy:
+        if: github.ref == 'refs/heads/main'
+        needs: tests
+        environment:
+            name: code-coverage
+            url: ${{ steps.deployment.outputs.page_url }}
+        runs-on: ubuntu-latest
+        steps:
+            - name: Deploy to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v4

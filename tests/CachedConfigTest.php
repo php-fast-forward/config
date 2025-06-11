@@ -122,4 +122,40 @@ final class CachedConfigTest extends TestCase
 
         $cachedConfig->set($key, $value);
     }
+
+    #[Test]
+    public function testRemoveWillUpdateCacheWhenPersistentIsTrue(): void
+    {
+        $key = uniqid();
+
+        $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
+        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([$key => uniqid()]);
+
+        $this->cache->set($this->defaultConfig->reveal()::class, [])->shouldBeCalled();
+
+        $this->cachedConfig->remove($key);
+
+        self::assertFalse($this->cachedConfig->has($key));
+    }
+
+    #[Test]
+    public function testRemoveWillNotUpdateCacheWhenPersistentIsFalse(): void
+    {
+        $cachedConfig = new CachedConfig(
+            cache: $this->cache->reveal(),
+            defaultConfig: $this->defaultConfig->reveal(),
+            persistent: false
+        );
+
+        $key = uniqid();
+
+        $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
+        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([$key => uniqid()]);
+
+        $this->cache->set($this->defaultConfig->reveal()::class, [])->shouldNotBeCalled();
+
+        $cachedConfig->remove($key);
+
+        self::assertFalse($cachedConfig->has($key));
+    }
 }
