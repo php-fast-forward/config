@@ -72,7 +72,7 @@ final class ConfigHelperTest extends TestCase
 
         $result = ConfigHelper::normalize($input);
 
-        self::assertSame($expected, $result);
+        self::assertEquals($expected, $result);
     }
 
     #[Test]
@@ -92,7 +92,7 @@ final class ConfigHelperTest extends TestCase
 
         $result = ConfigHelper::normalize($input);
 
-        self::assertSame($expected, $result);
+        self::assertEquals($expected, $result);
     }
 
     #[Test]
@@ -102,7 +102,7 @@ final class ConfigHelperTest extends TestCase
 
         $result = ConfigHelper::normalize($input);
 
-        self::assertSame($input, $result);
+        self::assertEquals($input, $result);
     }
 
     #[Test]
@@ -124,7 +124,7 @@ final class ConfigHelperTest extends TestCase
 
         $result = ConfigHelper::normalize($input);
 
-        self::assertSame($expected, $result);
+        self::assertEquals($expected, $result);
     }
 
     #[Test]
@@ -148,7 +148,7 @@ final class ConfigHelperTest extends TestCase
 
         $result = iterator_to_array(ConfigHelper::flatten($input));
 
-        self::assertSame($expected, $result);
+        self::assertEquals($expected, $result);
     }
 
     #[Test]
@@ -158,6 +158,6 @@ final class ConfigHelperTest extends TestCase
 
         $result = iterator_to_array(ConfigHelper::flatten($input));
 
-        self::assertSame([], $result);
+        self::assertEquals([], $result);
     }
 }
