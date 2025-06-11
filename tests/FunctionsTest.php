@@ -28,6 +28,7 @@ use FastForward\Config\Tests\Stub\ConfigProvider;
 use PHPUnit\Framework\Attributes\CoversFunction;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
+use PHPUnit\Framework\Attributes\UsesTrait;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
@@ -52,6 +53,7 @@ use function FastForward\Config\configProvider;
 #[UsesClass(DirectoryConfig::class)]
 #[UsesClass(RecursiveDirectoryConfig::class)]
 #[UsesClass(LamiasConfigAggregatorConfig::class)]
+#[UsesTrait(LazyLoadConfigTrait::class)]
 final class FunctionsTest extends TestCase
 {
     use ProphecyTrait;

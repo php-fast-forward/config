@@ -18,7 +18,7 @@ namespace FastForward\Config\Tests;
 use FastForward\Config\ArrayAccessConfigTrait;
 use FastForward\Config\ConfigInterface;
 use FastForward\Config\LazyLoadConfigTrait;
-use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Prophecy\PhpUnit\ProphecyTrait;
@@ -26,7 +26,7 @@ use Prophecy\PhpUnit\ProphecyTrait;
 /**
  * @internal
  */
-#[CoversClass(LazyLoadConfigTrait::class)]
+#[CoversTrait(LazyLoadConfigTrait::class)]
 final class LazyLoadConfigTraitTest extends TestCase
 {
     use ProphecyTrait;

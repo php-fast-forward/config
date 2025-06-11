@@ -14,14 +14,14 @@ declare(strict_types=1);
  */
 
 use FastForward\Config\ArrayAccessConfigTrait;
-use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\TestCase;
 use Prophecy\PhpUnit\ProphecyTrait;
 
 /**
  * @internal
  */
-#[CoversClass(ArrayAccessConfigTrait::class)]
+#[CoversTrait(ArrayAccessConfigTrait::class)]
 final class ArrayAccessConfigTraitTest extends TestCase
 {
     use ProphecyTrait;
