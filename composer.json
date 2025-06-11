@@ -49,8 +49,8 @@
         }
     },
     "scripts": {
-        "cs-check": "php-cs-fixer fix --dry-run --diff",
-        "cs-fix": "php-cs-fixer fix",
+        "cs-check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --dry-run --diff",
+        "cs-fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix",
         "mutation-testing": "infection --threads=4",
         "pre-commit": [
             "@cs-check",

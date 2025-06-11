@@ -2,6 +2,17 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of php-fast-forward/config.
+ *
+ * This source file is subject to the license bundled
+ * with this source code in the file LICENSE.
+ *
+ * @link      https://github.com/php-fast-forward/config
+ * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @license   https://opensource.org/licenses/MIT MIT License
+ */
+
 namespace FastForward\Config\Tests\Helper;
 
 use FastForward\Config\Helper\ConfigHelper;
@@ -9,6 +20,9 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @internal
+ */
 #[CoversClass(ConfigHelper::class)]
 final class ConfigHelperTest extends TestCase
 {
@@ -65,7 +79,7 @@ final class ConfigHelperTest extends TestCase
     public function testNormalizeWillHandleMixedNestedArrays(): void
     {
         $input = [
-            'database.host'  => 'localhost',
+            'database.host'   => 'localhost',
             'database.config' => ['port' => 3306],
         ];
 
@@ -95,7 +109,7 @@ final class ConfigHelperTest extends TestCase
     public function testNormalizeWillMergeArraysWhenKeysOverlap(): void
     {
         $input = [
-            'settings' => ['display' => ['resolution' => '1080p']],
+            'settings'         => ['display' => ['resolution' => '1080p']],
             'settings.display' => ['theme' => 'dark'],
         ];
 
@@ -110,7 +124,7 @@ final class ConfigHelperTest extends TestCase
 
         $result = ConfigHelper::normalize($input);
 
-        self::assertEquals($expected, $result);
+        self::assertSame($expected, $result);
     }
 
     #[Test]

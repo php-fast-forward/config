@@ -87,4 +87,23 @@ final class CachedConfig implements ConfigInterface
             $this->cache->set($this->cacheKey, $config->toArray());
         }
     }
+
+    /**
+     * Retrieves a configuration value by key.
+     *
+     * This method MUST return the cached value if it exists, or the default value if not found.
+     *
+     * @param string $key the configuration key to retrieve
+     *
+     * @return mixed the configuration value or the default value
+     */
+    public function remove(mixed $key): void
+    {
+        $config = $this->getConfig();
+        $config->remove($key);
+
+        if ($this->persistent) {
+            $this->cache->set($this->cacheKey, $config->toArray());
+        }
+    }
 }
