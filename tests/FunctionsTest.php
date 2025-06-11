@@ -52,7 +52,6 @@ use function FastForward\Config\configProvider;
 #[UsesClass(DirectoryConfig::class)]
 #[UsesClass(RecursiveDirectoryConfig::class)]
 #[UsesClass(LamiasConfigAggregatorConfig::class)]
-#[UsesClass(LazyLoadConfigTrait::class)]
 final class FunctionsTest extends TestCase
 {
     use ProphecyTrait;
