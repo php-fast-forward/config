@@ -138,9 +138,7 @@ final class ArrayConfig implements ConfigInterface
      *
      * This method SHALL return an iterator where each key represents
      * the nested path in dot notation, and each value is the corresponding value.
-     *
-     * For example:
-     * ['database' => ['host' => 'localhost']] becomes ['database.host' => 'localhost'].
+     * For example ['database' => ['host' => 'localhost']] becomes ['database.host' => 'localhost'].
      *
      * @return Traversable<string, mixed> an iterator of flattened key-value pairs
      */

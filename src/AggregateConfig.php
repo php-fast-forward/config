@@ -53,7 +53,6 @@ final class AggregateConfig implements ConfigInterface
      *
      * This method SHALL initialize a new ArrayConfig instance and populate it
      * with the values from each provided configuration source.
-     *
      * It MUST return a fully merged configuration in the form of a ConfigInterface implementation.
      *
      * @return ConfigInterface the resulting merged configuration object

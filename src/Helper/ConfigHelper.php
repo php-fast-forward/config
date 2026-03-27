@@ -37,8 +37,6 @@ final class ConfigHelper
      * This constructor is private to prevent instantiation of the class.
      *
      * The class MUST be used in a static context only.
-     *
-     * @codeCoverageIgnore
      */
     private function __construct()
     {
@@ -129,10 +127,8 @@ final class ConfigHelper
      *
      * This method SHALL recursively iterate through the nested array structure
      * and convert it into a flat representation where keys reflect the nested path.
-     *
-     * For example:
-     * Input: ['database' => ['host' => 'localhost']]
-     * Output: ['database.host' => 'localhost']
+     * A value like ['database' => ['host' => 'localhost']] SHALL be transformed into
+     * ['database.host' => 'localhost'].
      *
      * @param array $config the configuration array to flatten
      * @param string $rootKey (Optional) The root key prefix for recursive calls
