@@ -8,9 +8,12 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config\Container;
@@ -29,15 +32,13 @@ use Psr\Container\ContainerInterface;
  *
  * Identifiers such as 'config', ConfigInterface::class, and the concrete config class MUST return the configuration instance itself.
  * Requests for unknown or invalid identifiers MUST result in a ContainerNotFoundException.
- *
- * @package FastForward\Config\Container
  */
-final class ConfigContainer implements ContainerInterface
+final readonly class ConfigContainer implements ContainerInterface
 {
     /**
-     * @const string The standard identifier for retrieving the configuration object.
+     * @var string the standard identifier for retrieving the configuration object
      */
-    public const ALIAS = 'config';
+    public const string ALIAS = 'config';
 
     /**
      * Constructs a new ConfigContainer instance.
@@ -68,7 +69,7 @@ final class ConfigContainer implements ContainerInterface
             return true;
         }
 
-        if (!str_starts_with($id, self::ALIAS)) {
+        if (! str_starts_with($id, self::ALIAS)) {
             return false;
         }
 

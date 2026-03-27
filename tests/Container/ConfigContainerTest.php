@@ -8,9 +8,12 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config\Tests\Container;
@@ -34,6 +37,9 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(ContainerNotFoundException::class)]
 final class ConfigContainerTest extends TestCase
 {
+    /**
+     * @return void
+     */
     #[Test]
     public function testHasReturnsTrueForKnownInternalIdentifiers(): void
     {
@@ -45,18 +51,26 @@ final class ConfigContainerTest extends TestCase
         self::assertTrue($container->has($config::class));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testHasReturnsTrueIfConfigContainsKey(): void
     {
         $key   = uniqid('key_', true);
         $value = uniqid('val_', true);
 
-        $config    = new ArrayConfig([$key => $value]);
+        $config    = new ArrayConfig([
+            $key => $value,
+        ]);
         $container = new ConfigContainer($config);
 
         self::assertTrue($container->has(ConfigContainer::ALIAS . '.' . $key));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testHasReturnsFalseForUnknownKey(): void
     {
@@ -66,6 +80,9 @@ final class ConfigContainerTest extends TestCase
         self::assertFalse($container->has(uniqid('missing_', true)));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testGetReturnsContainerForInternalIdentifiers(): void
     {
@@ -77,18 +94,26 @@ final class ConfigContainerTest extends TestCase
         self::assertSame($config, $container->get($config::class));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testGetReturnsConfigValueForKey(): void
     {
         $key   = uniqid('env_', true);
         $value = uniqid('value_', true);
 
-        $config    = new ArrayConfig([$key => $value]);
+        $config    = new ArrayConfig([
+            $key => $value,
+        ]);
         $container = new ConfigContainer($config);
 
         self::assertSame($value, $container->get(ConfigContainer::ALIAS . '.' . $key));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testGetThrowsExceptionForUnknownKey(): void
     {
@@ -100,6 +125,9 @@ final class ConfigContainerTest extends TestCase
         $container->get(uniqid('unknown_', true));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testGetWithConfigContainerWillReturnConfigContainer(): void
     {

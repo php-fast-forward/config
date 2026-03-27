@@ -8,9 +8,12 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config\Tests;
@@ -31,6 +34,9 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(InvalidArgumentException::class)]
 final class ArrayConfigTest extends TestCase
 {
+    /**
+     * @return void
+     */
     #[Test]
     public function testGetWillReturnPrimitiveOrNestedConfig(): void
     {
@@ -39,26 +45,40 @@ final class ArrayConfigTest extends TestCase
         $val       = uniqid('val_');
         $default   = uniqid('def_');
 
-        $config = new ArrayConfig([$nestedKey => $val]);
+        $config = new ArrayConfig([
+            $nestedKey => $val,
+        ]);
 
         self::assertSame($val, $config->get($nestedKey));
         self::assertSame($default, $config->get(uniqid('missing_'), $default));
 
         $nested = $config->get($key);
         self::assertInstanceOf(ArrayConfig::class, $nested);
-        self::assertSame([$key => ['nested' => $val]], $config->toArray());
+        self::assertSame([
+            $key => [
+                'nested' => $val,
+            ],
+        ], $config->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testHasReturnsExpectedResults(): void
     {
         $key    = uniqid('foo.') . 'bar';
-        $config = new ArrayConfig([$key => 'value']);
+        $config = new ArrayConfig([
+            $key => 'value',
+        ]);
 
         self::assertTrue($config->has($key));
         self::assertFalse($config->has(uniqid('nope_', true)));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testSetWithArrayMergesCorrectly(): void
     {
@@ -67,12 +87,22 @@ final class ArrayConfigTest extends TestCase
         $v1   = random_int(1, 100);
         $v2   = random_int(101, 200);
 
-        $config = new ArrayConfig([$key1 => $v1]);
-        $config->set([$key2 => $v2]);
+        $config = new ArrayConfig([
+            $key1 => $v1,
+        ]);
+        $config->set([
+            $key2 => $v2,
+        ]);
 
-        self::assertSame([$key1 => $v1, $key2 => $v2], $config->toArray());
+        self::assertSame([
+            $key1 => $v1,
+            $key2 => $v2,
+        ], $config->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testSetWithKeyValuePairs(): void
     {
@@ -82,9 +112,14 @@ final class ArrayConfigTest extends TestCase
         $config = new ArrayConfig();
         $config->set($key, $val);
 
-        self::assertSame([$key => $val], $config->toArray());
+        self::assertSame([
+            $key => $val,
+        ], $config->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testSetThrowsExceptionForInvalidKey(): void
     {
@@ -94,20 +129,30 @@ final class ArrayConfigTest extends TestCase
         $config->set([123], 'value');
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testSetAcceptsAnotherConfigInterface(): void
     {
         $key   = uniqid('shared_');
         $value = random_int(100, 999);
 
-        $source = new ArrayConfig([$key => $value]);
+        $source = new ArrayConfig([
+            $key => $value,
+        ]);
 
         $config = new ArrayConfig();
         $config->set($source);
 
-        self::assertSame([$key => $value], $config->toArray());
+        self::assertSame([
+            $key => $value,
+        ], $config->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testGetIteratorYieldsAllKeys(): void
     {
@@ -121,13 +166,18 @@ final class ArrayConfigTest extends TestCase
         self::assertSame($data, iterator_to_array($config));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testDotNotationMergesAssociativeNestedKeys(): void
     {
         $config = new ArrayConfig([
             'db.connection.host' => 'localhost',
             'db.connection.port' => 3306,
-            'db.options'         => ['charset' => 'utf8'],
+            'db.options'         => [
+                'charset' => 'utf8',
+            ],
         ]);
 
         $expected = [
@@ -145,19 +195,27 @@ final class ArrayConfigTest extends TestCase
         self::assertSame($expected, $config->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testRemoveKeyRemovesTopLevelKeys(): void
     {
         $key = uniqid('key_');
         $val = uniqid('value_');
 
-        $config = new ArrayConfig([$key => $val]);
+        $config = new ArrayConfig([
+            $key => $val,
+        ]);
         $config->remove($key);
 
         self::assertFalse($config->has($key));
         self::assertSame([], $config->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testRemoveKeyRemovesNestedKeys(): void
     {
@@ -165,13 +223,20 @@ final class ArrayConfigTest extends TestCase
         $key2 = $key1 . 'nested';
         $val  = uniqid('value_');
 
-        $config = new ArrayConfig([$key2 => $val]);
+        $config = new ArrayConfig([
+            $key2 => $val,
+        ]);
         $config->remove($key2);
 
         self::assertFalse($config->has($key2));
-        self::assertSame(['key1' => []], $config->toArray());
+        self::assertSame([
+            'key1' => [],
+        ], $config->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testRemoveKeyRemovesDeepNestedKeys(): void
     {
@@ -180,10 +245,16 @@ final class ArrayConfigTest extends TestCase
         $key3 = $key2 . 'deep';
         $val  = uniqid('value_');
 
-        $config = new ArrayConfig([$key3 => $val]);
+        $config = new ArrayConfig([
+            $key3 => $val,
+        ]);
         $config->remove($key3);
 
-        $config2 = new ArrayConfig([$key1 => ['nested' => []]]);
+        $config2 = new ArrayConfig([
+            $key1 => [
+                'nested' => [],
+            ],
+        ]);
 
         self::assertFalse($config->has($key3));
         self::assertSame($config2->toArray(), $config->toArray());

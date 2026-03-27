@@ -8,9 +8,12 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config\Tests\Helper;
@@ -26,14 +29,22 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(ConfigHelper::class)]
 final class ConfigHelperTest extends TestCase
 {
+    /**
+     * @return void
+     */
     #[Test]
     public function testIsAssocWillReturnTrueForAssociativeArray(): void
     {
-        $array = ['key' => 'value'];
+        $array = [
+            'key' => 'value',
+        ];
 
         self::assertTrue(ConfigHelper::isAssoc($array));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testIsAssocWillReturnFalseForSequentialArray(): void
     {
@@ -42,6 +53,9 @@ final class ConfigHelperTest extends TestCase
         self::assertFalse(ConfigHelper::isAssoc($array));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testIsAssocWillReturnFalseForNonArray(): void
     {
@@ -51,6 +65,9 @@ final class ConfigHelperTest extends TestCase
         self::assertFalse(ConfigHelper::isAssoc(true));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testNormalizeWillConvertDotNotationToNestedArray(): void
     {
@@ -75,18 +92,25 @@ final class ConfigHelperTest extends TestCase
         self::assertEquals($expected, $result);
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testNormalizeWillHandleMixedNestedArrays(): void
     {
         $input = [
             'database.host'   => 'localhost',
-            'database.config' => ['port' => 3306],
+            'database.config' => [
+                'port' => 3306,
+            ],
         ];
 
         $expected = [
             'database' => [
                 'host'   => 'localhost',
-                'config' => ['port' => 3306],
+                'config' => [
+                    'port' => 3306,
+                ],
             ],
         ];
 
@@ -95,6 +119,9 @@ final class ConfigHelperTest extends TestCase
         self::assertEquals($expected, $result);
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testNormalizeWillReturnIndexedArrayUnchanged(): void
     {
@@ -105,12 +132,21 @@ final class ConfigHelperTest extends TestCase
         self::assertEquals($input, $result);
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testNormalizeWillMergeArraysWhenKeysOverlap(): void
     {
         $input = [
-            'settings'         => ['display' => ['resolution' => '1080p']],
-            'settings.display' => ['theme' => 'dark'],
+            'settings'         => [
+                'display' => [
+                    'resolution' => '1080p',
+                ],
+            ],
+            'settings.display' => [
+                'theme' => 'dark',
+            ],
         ];
 
         $expected = [
@@ -127,6 +163,9 @@ final class ConfigHelperTest extends TestCase
         self::assertEquals($expected, $result);
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testFlattenWillConvertNestedArrayToDotNotation(): void
     {
@@ -151,6 +190,9 @@ final class ConfigHelperTest extends TestCase
         self::assertEquals($expected, $result);
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testFlattenWillHandleEmptyArray(): void
     {

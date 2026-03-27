@@ -8,9 +8,12 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config;
@@ -32,7 +35,7 @@ class DirectoryConfig extends LamiasConfigAggregatorConfig implements ConfigInte
     use LazyLoadConfigTrait;
 
     /**
-     * @const string File matching pattern for PHP configuration files.
+     * @var string file matching pattern for PHP configuration files
      */
     protected const PATTERN = '{,*}.php';
 
@@ -43,8 +46,8 @@ class DirectoryConfig extends LamiasConfigAggregatorConfig implements ConfigInte
      * the Laminas config aggregator with a PHP file provider using the defined pattern.
      * If a cache file is provided, it SHALL be used to store the aggregated configuration.
      *
-     * @param string      $directory        the directory path from which to load configuration files
-     * @param null|string $cachedConfigFile optional path to a cache file for the aggregated configuration
+     * @param string $directory the directory path from which to load configuration files
+     * @param string|null $cachedConfigFile optional path to a cache file for the aggregated configuration
      *
      * @throws InvalidArgumentException if the directory is not valid or not readable
      */
@@ -52,7 +55,7 @@ class DirectoryConfig extends LamiasConfigAggregatorConfig implements ConfigInte
         private readonly string $directory,
         private readonly ?string $cachedConfigFile = null,
     ) {
-        if (!is_dir($this->directory) || !is_readable($this->directory)) {
+        if (! is_dir($this->directory) || ! is_readable($this->directory)) {
             throw InvalidArgumentException::forUnreadableDirectory($this->directory);
         }
 

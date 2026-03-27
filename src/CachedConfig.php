@@ -8,9 +8,12 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config;
@@ -35,10 +38,10 @@ final class CachedConfig implements ConfigInterface
      * This constructor SHALL accept a PSR-16 cache implementation and a configuration instance
      * to be cached. It MUST defer reading and writing the configuration until invoked.
      *
-     * @param CacheInterface  $cache         the cache implementation used for storing configuration data
+     * @param CacheInterface $cache the cache implementation used for storing configuration data
      * @param ConfigInterface $defaultConfig the configuration source to be cached
-     * @param bool            $persistent    whether the cache should be persistent or not
-     * @param null|string     $cacheKey      the cache key to use for storing the configuration data
+     * @param bool $persistent whether the cache should be persistent or not
+     * @param string|null $cacheKey the cache key to use for storing the configuration data
      */
     public function __construct(
         private readonly CacheInterface $cache,
@@ -61,7 +64,7 @@ final class CachedConfig implements ConfigInterface
      */
     public function __invoke(): ConfigInterface
     {
-        if (!$this->cache->has($this->cacheKey)) {
+        if (! $this->cache->has($this->cacheKey)) {
             $this->cache->set($this->cacheKey, $this->defaultConfig->toArray());
         }
 
@@ -73,8 +76,10 @@ final class CachedConfig implements ConfigInterface
      *
      * This method MUST update the cached configuration data in the cache if the persistent flag is set to true.
      *
-     * @param array|ConfigInterface|string $key   the configuration key or an array of key-value pairs to set
-     * @param mixed                        $value the value to set for the specified key
+     * @param array|ConfigInterface|string $key the configuration key or an array of key-value pairs to set
+     * @param mixed $value the value to set for the specified key
+     *
+     * @return void
      *
      * @throws InvalidArgumentException if the key is invalid
      */

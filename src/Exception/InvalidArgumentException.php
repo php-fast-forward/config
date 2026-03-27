@@ -8,9 +8,12 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config\Exception;
@@ -43,9 +46,6 @@ final class InvalidArgumentException extends \InvalidArgumentException
      */
     public static function forUnreadableDirectory(string $directory): self
     {
-        return new self(\sprintf(
-            'The directory "%s" does not exist or is not readable.',
-            $directory,
-        ));
+        return new self(\sprintf('The directory "%s" does not exist or is not readable.', $directory));
     }
 }

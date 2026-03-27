@@ -15,25 +15,23 @@
         "source": "https://github.com/php-fast-forward/config"
     },
     "require": {
-        "php": "^8.1",
+        "php": "^8.3",
         "dflydev/dot-access-data": "^3.0",
         "laminas/laminas-config-aggregator": "^1.13",
-        "psr/container": "^1.0||^2.0",
+        "psr/container": "^1.0 || ^2.0",
         "psr/simple-cache": "^3.0"
     },
     "require-dev": {
-        "coisa/php-cs-fixer": "^2.1",
-        "phpspec/prophecy-phpunit": "^2.3",
-        "phpunit/phpunit": "^9.6 || ^10.5 || ^11.5"
+        "fast-forward/dev-tools": "dev-main"
     },
     "minimum-stability": "stable",
     "autoload": {
-        "files": [
-            "src/functions.php"
-        ],
         "psr-4": {
             "FastForward\\Config\\": "src/"
-        }
+        },
+        "files": [
+            "src/functions.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -41,23 +39,27 @@
         }
     },
     "config": {
+        "allow-plugins": {
+            "ergebnis/composer-normalize": true,
+            "fast-forward/dev-tools": true,
+            "phpdocumentor/shim": true,
+            "phpro/grumphp": true
+        },
+        "platform": {
+            "php": "8.3.0"
+        },
         "sort-packages": true
     },
     "extra": {
         "branch-alias": {
             "dev-main": "1.x-dev"
+        },
+        "grumphp": {
+            "config-default-path": "vendor/fast-forward/dev-tools/grumphp.yml"
         }
     },
     "scripts": {
-        "cs-check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --dry-run --diff",
-        "cs-fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix",
-        "mutation-testing": "infection --threads=4",
-        "pre-commit": [
-            "@cs-check",
-            "@static-analysis",
-            "@tests"
-        ],
-        "static-analysis": "phpstan analyse --level 5 src",
-        "tests": "phpunit --testdox"
+        "dev-tools": "dev-tools",
+        "dev-tools:fix": "@dev-tools --fix"
     }
 }

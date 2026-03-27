@@ -8,9 +8,12 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config\Tests;
@@ -35,22 +38,28 @@ final class AggregateConfigTest extends TestCase
 {
     use ProphecyTrait;
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testInvokeWillAggregateAllConfigsIntoOne(): void
     {
-        $data1 = [uniqid() => uniqid()];
-        $data2 = [uniqid() => random_int(PHP_INT_MIN, PHP_INT_MAX)];
+        $data1 = [
+            uniqid() => uniqid(),
+        ];
+        $data2 = [
+            uniqid() => random_int(\PHP_INT_MIN, \PHP_INT_MAX),
+        ];
 
         $config1 = $this->prophesize(ConfigInterface::class);
-        $config1->toArray()->willReturn($data1);
+        $config1->toArray()
+            ->willReturn($data1);
 
         $config2 = $this->prophesize(ConfigInterface::class);
-        $config2->toArray()->willReturn($data2);
+        $config2->toArray()
+            ->willReturn($data2);
 
-        $aggregate = new AggregateConfig(
-            $config1->reveal(),
-            $config2->reveal(),
-        );
+        $aggregate = new AggregateConfig($config1->reveal(), $config2->reveal());
 
         $result = $aggregate();
 

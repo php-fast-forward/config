@@ -8,13 +8,17 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config\Exception;
 
+use Exception;
 use Psr\Container\NotFoundExceptionInterface;
 
 /**
@@ -23,7 +27,7 @@ use Psr\Container\NotFoundExceptionInterface;
  * Exception thrown when a configuration key is not found in the container.
  * This class MUST implement the PSR-11 NotFoundExceptionInterface.
  */
-final class ContainerNotFoundException extends \Exception implements NotFoundExceptionInterface
+final class ContainerNotFoundException extends Exception implements NotFoundExceptionInterface
 {
     /**
      * Creates a new exception instance for a missing configuration key.

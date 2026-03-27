@@ -8,14 +8,15 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config;
-
-use Dflydev\DotAccessData\Data;
 
 /**
  * Trait ArrayAccessConfigTrait.
@@ -66,7 +67,9 @@ trait ArrayAccessConfigTrait
      * This method SHALL assign the given value to the specified offset.
      *
      * @param mixed $offset the offset at which to set the value
-     * @param mixed $value  the value to set
+     * @param mixed $value the value to set
+     *
+     * @return void
      */
     public function offsetSet(mixed $offset, mixed $value): void
     {
@@ -79,6 +82,8 @@ trait ArrayAccessConfigTrait
      * This method SHALL remove the specified offset and its associated value.
      *
      * @param mixed $offset the offset to remove
+     *
+     * @return void
      */
     public function offsetUnset(mixed $offset): void
     {

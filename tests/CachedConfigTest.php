@@ -8,9 +8,12 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config\Tests;
@@ -43,6 +46,9 @@ final class CachedConfigTest extends TestCase
 
     private CachedConfig $cachedConfig;
 
+    /**
+     * @return void
+     */
     protected function setUp(): void
     {
         $this->cache         = $this->prophesize(CacheInterface::class);
@@ -55,13 +61,19 @@ final class CachedConfigTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testInvokeWillReturnCachedConfigInstanceWhenNotCached(): void
     {
-        $data = [uniqid() => uniqid()];
+        $data = [
+            uniqid() => uniqid(),
+        ];
 
         $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(false);
-        $this->defaultConfig->toArray()->willReturn($data);
+        $this->defaultConfig->toArray()
+            ->willReturn($data);
 
         $this->cache->set($this->defaultConfig->reveal()::class, $data)->shouldBeCalled();
         $this->cache->get($this->defaultConfig->reveal()::class)->willReturn($data);
@@ -72,10 +84,15 @@ final class CachedConfigTest extends TestCase
         self::assertSame($data, $result->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testInvokeWillReturnCachedConfigInstanceWhenAlreadyCached(): void
     {
-        $data = [uniqid() => random_int(PHP_INT_MIN, PHP_INT_MAX)];
+        $data = [
+            uniqid() => random_int(\PHP_INT_MIN, \PHP_INT_MAX),
+        ];
 
         $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
         $this->cache->get($this->defaultConfig->reveal()::class)->willReturn($data);
@@ -86,12 +103,17 @@ final class CachedConfigTest extends TestCase
         self::assertSame($data, $result->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testSetWillUpdateCacheWhenPersistentIsTrue(): void
     {
         $key   = uniqid();
         $value = uniqid();
-        $data  = [$key => $value];
+        $data  = [
+            $key => $value,
+        ];
 
         $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
         $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([]);
@@ -103,6 +125,9 @@ final class CachedConfigTest extends TestCase
         self::assertSame($value, $this->cachedConfig->get($key));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testSetWillNotUpdateCacheWhenPersistentIsFalse(): void
     {
@@ -118,18 +143,25 @@ final class CachedConfigTest extends TestCase
         $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
         $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([]);
 
-        $this->cache->set($this->defaultConfig->reveal()::class, [$key => $value])->shouldNotBeCalled();
+        $this->cache->set($this->defaultConfig->reveal()::class, [
+            $key => $value,
+        ])->shouldNotBeCalled();
 
         $cachedConfig->set($key, $value);
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testRemoveWillUpdateCacheWhenPersistentIsTrue(): void
     {
         $key = uniqid();
 
         $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
-        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([$key => uniqid()]);
+        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([
+            $key => uniqid(),
+        ]);
 
         $this->cache->set($this->defaultConfig->reveal()::class, [])->shouldBeCalled();
 
@@ -138,6 +170,9 @@ final class CachedConfigTest extends TestCase
         self::assertFalse($this->cachedConfig->has($key));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testRemoveWillNotUpdateCacheWhenPersistentIsFalse(): void
     {
@@ -150,7 +185,9 @@ final class CachedConfigTest extends TestCase
         $key = uniqid();
 
         $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
-        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([$key => uniqid()]);
+        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([
+            $key => uniqid(),
+        ]);
 
         $this->cache->set($this->defaultConfig->reveal()::class, [])->shouldNotBeCalled();
 

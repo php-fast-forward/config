@@ -8,9 +8,12 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config;
@@ -34,8 +37,8 @@ class LamiasConfigAggregatorConfig implements ConfigInterface
      * This constructor SHALL accept a set of configuration providers and an optional cache file path.
      * Providers MUST be iterable and yield valid configuration arrays.
      *
-     * @param iterable    $providers        the configuration providers for aggregation
-     * @param null|string $cachedConfigFile the optional path to a cached config file
+     * @param iterable $providers the configuration providers for aggregation
+     * @param string|null $cachedConfigFile the optional path to a cached config file
      */
     public function __construct(
         private iterable $providers,
@@ -52,10 +55,7 @@ class LamiasConfigAggregatorConfig implements ConfigInterface
      */
     public function __invoke(): ConfigInterface
     {
-        $configAggregator = new ConfigAggregator(
-            $this->providers,
-            $this->cachedConfigFile,
-        );
+        $configAggregator = new ConfigAggregator($this->providers, $this->cachedConfigFile);
 
         return new ArrayConfig(config: $configAggregator->getMergedConfig());
     }

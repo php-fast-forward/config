@@ -8,12 +8,17 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config;
+
+use Traversable;
 
 /**
  * Trait LazyLoadConfigTrait.
@@ -27,7 +32,7 @@ trait LazyLoadConfigTrait
     use ArrayAccessConfigTrait;
 
     /**
-     * @var null|ConfigInterface holds the loaded configuration instance
+     * @var ConfigInterface|null holds the loaded configuration instance
      */
     private ?ConfigInterface $config = null;
 
@@ -41,14 +46,15 @@ trait LazyLoadConfigTrait
     /**
      * Retrieves a configuration value by key.
      *
-     * @param string     $key     the configuration key to retrieve
-     * @param null|mixed $default the default value if the key is not found
+     * @param string $key the configuration key to retrieve
+     * @param mixed|null $default the default value if the key is not found
      *
      * @return mixed the value of the configuration key or the default
      */
     public function get(string $key, mixed $default = null): mixed
     {
-        return $this->getConfig()->get($key, $default);
+        return $this->getConfig()
+            ->get($key, $default);
     }
 
     /**
@@ -60,28 +66,35 @@ trait LazyLoadConfigTrait
      */
     public function has(string $key): bool
     {
-        return $this->getConfig()->has($key);
+        return $this->getConfig()
+            ->has($key);
     }
 
     /**
      * Sets configuration data.
      *
-     * @param array|ConfigInterface|string $key   the key or set of keys/values to set
-     * @param null|mixed                   $value the value to set if a single key is provided
+     * @param array|ConfigInterface|string $key the key or set of keys/values to set
+     * @param mixed|null $value the value to set if a single key is provided
+     *
+     * @return void
      */
     public function set(array|ConfigInterface|string $key, mixed $value = null): void
     {
-        $this->getConfig()->set($key, $value);
+        $this->getConfig()
+            ->set($key, $value);
     }
 
     /**
      * Removes a configuration key.
      *
      * @param string $key the configuration key to remove
+     *
+     * @return void
      */
     public function remove(string $key): void
     {
-        $this->getConfig()->remove($key);
+        $this->getConfig()
+            ->remove($key);
     }
 
     /**
@@ -91,17 +104,19 @@ trait LazyLoadConfigTrait
      */
     public function toArray(): array
     {
-        return $this->getConfig()->toArray();
+        return $this->getConfig()
+            ->toArray();
     }
 
     /**
      * Retrieves an iterator for traversing the configuration data.
      *
-     * @return \Traversable an iterator over the configuration
+     * @return Traversable an iterator over the configuration
      */
-    public function getIterator(): \Traversable
+    public function getIterator(): Traversable
     {
-        return $this->getConfig()->getIterator();
+        return $this->getConfig()
+            ->getIterator();
     }
 
     /**

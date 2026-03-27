@@ -8,9 +8,12 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config\Tests;
@@ -58,30 +61,45 @@ final class FunctionsTest extends TestCase
 {
     use ProphecyTrait;
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testConfigAcceptsArrayAndReturnsAggregateConfig(): void
     {
-        $data   = [uniqid('key_') => uniqid('val_')];
+        $data   = [
+            uniqid('key_') => uniqid('val_'),
+        ];
         $result = config($data);
 
         self::assertInstanceOf(ConfigInterface::class, $result);
         self::assertSame($data, $result->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testConfigAcceptsInvokableClassName(): void
     {
         $result = config(ConfigProvider::class);
 
         self::assertInstanceOf(ConfigInterface::class, $result);
-        self::assertSame(['key' => 'value'], $result->toArray());
+        self::assertSame([
+            'key' => 'value',
+        ], $result->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testConfigCacheWrapsConfigWithCache(): void
     {
         $cache = $this->prophesize(CacheInterface::class);
-        $data  = [uniqid() => uniqid()];
+        $data  = [
+            uniqid() => uniqid(),
+        ];
 
         $cache->has(Argument::type('string'))->willReturn(false);
         $cache->set(Argument::type('string'), $data)->shouldBeCalledOnce();
@@ -93,6 +111,9 @@ final class FunctionsTest extends TestCase
         self::assertInstanceOf(ConfigInterface::class, $config());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testConfigDirReturnsExpectedInstance(): void
     {
@@ -112,22 +133,35 @@ final class FunctionsTest extends TestCase
         rmdir($dir);
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testConfigProviderReturnsExpectedImplementation(): void
     {
         $provider = new class {
+            /**
+             * @return array
+             */
             public function __invoke(): array
             {
-                return ['foo' => 'bar'];
+                return [
+                    'foo' => 'bar',
+                ];
             }
         };
 
         $config = configProvider([$provider]);
 
         self::assertInstanceOf(LamiasConfigAggregatorConfig::class, $config);
-        self::assertSame(['foo' => 'bar'], $config->toArray());
+        self::assertSame([
+            'foo' => 'bar',
+        ], $config->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testConfigWillLoadDirectoryWhenStringIsDirectory(): void
     {

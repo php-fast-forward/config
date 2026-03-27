@@ -8,13 +8,18 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config\Tests;
 
+use Traversable;
+use ArrayIterator;
 use FastForward\Config\ArrayAccessConfigTrait;
 use FastForward\Config\ConfigInterface;
 use FastForward\Config\LazyLoadConfigTrait;
@@ -31,6 +36,9 @@ final class LazyLoadConfigTraitTest extends TestCase
 {
     use ProphecyTrait;
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testGetDelegatesToConfig(): void
     {
@@ -38,12 +46,17 @@ final class LazyLoadConfigTraitTest extends TestCase
         $value   = uniqid('value_', true);
         $default = uniqid('default_', true);
 
-        $fake = $this->createTestInstance([$key => $value]);
+        $fake = $this->createTestInstance([
+            $key => $value,
+        ]);
 
         self::assertSame($value, $fake->get($key));
         self::assertSame($default, $fake->get(uniqid('missing_', true), $default));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testRemoveRemovesFromConfig(): void
     {
@@ -52,7 +65,10 @@ final class LazyLoadConfigTraitTest extends TestCase
         $val1 = random_int(1, 100);
         $val2 = random_int(101, 200);
 
-        $fake = $this->createTestInstance([$key1 => $val1, $key2 => $val2]);
+        $fake = $this->createTestInstance([
+            $key1 => $val1,
+            $key2 => $val2,
+        ]);
 
         self::assertTrue($fake->has($key1));
         self::assertTrue($fake->has($key2));
@@ -63,18 +79,26 @@ final class LazyLoadConfigTraitTest extends TestCase
         self::assertTrue($fake->has($key2));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testHasReturnsExpectedResults(): void
     {
         $present = uniqid('present_', true);
         $absent  = uniqid('absent_', true);
 
-        $fake = $this->createTestInstance([$present => random_int(1, 100)]);
+        $fake = $this->createTestInstance([
+            $present => random_int(1, 100),
+        ]);
 
         self::assertTrue($fake->has($present));
         self::assertFalse($fake->has($absent));
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testSetMergesValuesCorrectly(): void
     {
@@ -85,17 +109,31 @@ final class LazyLoadConfigTraitTest extends TestCase
         $val2 = random_int(201, 300);
         $val3 = random_int(301, 400);
 
-        $fake = $this->createTestInstance([$key1 => $val1]);
+        $fake = $this->createTestInstance([
+            $key1 => $val1,
+        ]);
 
-        $fake->set([$key2 => $val2]);
+        $fake->set([
+            $key2 => $val2,
+        ]);
 
-        self::assertSame([$key1 => $val1, $key2 => $val2], $fake->toArray());
+        self::assertSame([
+            $key1 => $val1,
+            $key2 => $val2,
+        ], $fake->toArray());
 
         $fake->set($key3, $val3);
 
-        self::assertSame([$key1 => $val1, $key2 => $val2, $key3 => $val3], $fake->toArray());
+        self::assertSame([
+            $key1 => $val1,
+            $key2 => $val2,
+            $key3 => $val3,
+        ], $fake->toArray());
     }
 
+    /**
+     * @return void
+     */
     #[Test]
     public function testToArrayAndIteratorAreConsistent(): void
     {
@@ -104,9 +142,15 @@ final class LazyLoadConfigTraitTest extends TestCase
         $v1 = random_int(1, 50);
         $v2 = random_int(51, 100);
 
-        $fake = $this->createTestInstance([$a => $v1, $b => $v2]);
+        $fake = $this->createTestInstance([
+            $a => $v1,
+            $b => $v2,
+        ]);
 
-        self::assertSame([$a => $v1, $b => $v2], $fake->toArray());
+        self::assertSame([
+            $a => $v1,
+            $b => $v2,
+        ], $fake->toArray());
 
         $collected = [];
         foreach ($fake->getIterator() as $k => $v) {
@@ -116,30 +160,65 @@ final class LazyLoadConfigTraitTest extends TestCase
         self::assertSame($fake->toArray(), $collected);
     }
 
+    /**
+     * @param array $data
+     *
+     * @return ConfigInterface
+     */
     private function createTestInstance(array $data): ConfigInterface
     {
-        return new class($data) implements ConfigInterface {
+        return new class ($data) implements ConfigInterface {
             use LazyLoadConfigTrait;
 
-            public function __construct(private array $data) {}
+            /**
+             * @param array $data
+             */
+            public function __construct(
+                private array $data
+            ) {}
 
+            /**
+             * @return ConfigInterface
+             */
             public function __invoke(): ConfigInterface
             {
-                return new class($this->data) implements ConfigInterface {
+                return new class ($this->data) implements ConfigInterface {
                     use ArrayAccessConfigTrait;
 
-                    public function __construct(private array $items) {}
+                    /**
+                     * @param array $items
+                     */
+                    public function __construct(
+                        private array $items
+                    ) {}
 
+                    /**
+                     * @param string $key
+                     * @param mixed $default
+                     *
+                     * @return mixed
+                     */
                     public function get(string $key, mixed $default = null): mixed
                     {
                         return $this->items[$key] ?? $default;
                     }
 
+                    /**
+                     * @param string $key
+                     *
+                     * @return bool
+                     */
                     public function has(string $key): bool
                     {
                         return \array_key_exists($key, $this->items);
                     }
 
+                    /**
+                     * @param array|ConfigInterface|string $key
+                     * @param mixed $value
+                     *
+                     * @return void
+                     */
                     public function set(array|ConfigInterface|string $key, mixed $value = null): void
                     {
                         if (\is_string($key)) {
@@ -151,6 +230,11 @@ final class LazyLoadConfigTraitTest extends TestCase
                         }
                     }
 
+                    /**
+                     * @param string $key
+                     *
+                     * @return void
+                     */
                     public function remove(string $key): void
                     {
                         if ($this->has($key)) {
@@ -158,14 +242,20 @@ final class LazyLoadConfigTraitTest extends TestCase
                         }
                     }
 
+                    /**
+                     * @return array
+                     */
                     public function toArray(): array
                     {
                         return $this->items;
                     }
 
-                    public function getIterator(): \Traversable
+                    /**
+                     * @return Traversable
+                     */
+                    public function getIterator(): Traversable
                     {
-                        return new \ArrayIterator($this->items);
+                        return new ArrayIterator($this->items);
                     }
                 };
             }

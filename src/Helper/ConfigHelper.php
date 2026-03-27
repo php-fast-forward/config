@@ -8,13 +8,18 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config\Helper;
 
+use ReflectionClassConstant;
+use Traversable;
 use Dflydev\DotAccessData\Data;
 use Dflydev\DotAccessData\DataInterface;
 use Dflydev\DotAccessData\Util;
@@ -29,9 +34,8 @@ use Dflydev\DotAccessData\Util;
 final class ConfigHelper
 {
     /**
-     * ConfigHelper constructor.
-     *
      * This constructor is private to prevent instantiation of the class.
+     *
      * The class MUST be used in a static context only.
      *
      * @codeCoverageIgnore
@@ -69,13 +73,13 @@ final class ConfigHelper
      */
     public static function normalize(array $config): array
     {
-        if (!self::isAssoc($config)) {
+        if (! self::isAssoc($config)) {
             return $config;
         }
 
         $normalized = [];
 
-        $reflectionConst = new \ReflectionClassConstant(Data::class, 'DELIMITERS');
+        $reflectionConst = new ReflectionClassConstant(Data::class, 'DELIMITERS');
         $delimiters      = $reflectionConst->getValue();
 
         $delimiterChars    = implode('', $delimiters);
@@ -86,7 +90,7 @@ final class ConfigHelper
                 $value = self::normalize($value);
             }
 
-            if (!\is_string($key) || false === strpbrk($key, $delimiterChars)) {
+            if (! \is_string($key) || false === strpbrk($key, $delimiterChars)) {
                 $normalized[$key] = $value;
 
                 continue;
@@ -98,9 +102,10 @@ final class ConfigHelper
 
             foreach ($parts as $index => $part) {
                 if ($index !== $lastIndex) {
-                    if (!isset($current[$part]) || !\is_array($current[$part])) {
+                    if (! isset($current[$part]) || ! \is_array($current[$part])) {
                         $current[$part] = [];
                     }
+
                     $current = &$current[$part];
 
                     continue;
@@ -129,12 +134,12 @@ final class ConfigHelper
      * Input: ['database' => ['host' => 'localhost']]
      * Output: ['database.host' => 'localhost']
      *
-     * @param array  $config  the configuration array to flatten
+     * @param array $config the configuration array to flatten
      * @param string $rootKey (Optional) The root key prefix for recursive calls
      *
-     * @return \Traversable<string, mixed> a traversable list of flattened key-value pairs
+     * @return Traversable<string, mixed> a traversable list of flattened key-value pairs
      */
-    public static function flatten(array $config, string $rootKey = ''): \Traversable
+    public static function flatten(array $config, string $rootKey = ''): Traversable
     {
         foreach ($config as $key => $value) {
             if (\is_array($value)) {

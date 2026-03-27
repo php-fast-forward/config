@@ -8,13 +8,17 @@ declare(strict_types=1);
  * This source file is subject to the license bundled
  * with this source code in the file LICENSE.
  *
- * @link      https://github.com/php-fast-forward/config
- * @copyright Copyright (c) 2025 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
+ * @copyright Copyright (c) 2025-2026 Felipe Sayão Lobato Abreu <github@mentordosnerds.com>
  * @license   https://opensource.org/licenses/MIT MIT License
+ *
+ * @see       https://github.com/php-fast-forward/config
+ * @see       https://github.com/php-fast-forward
+ * @see       https://datatracker.ietf.org/doc/html/rfc2119
  */
 
 namespace FastForward\Config;
 
+use Traversable;
 use Dflydev\DotAccessData\Data;
 use FastForward\Config\Exception\InvalidArgumentException;
 use FastForward\Config\Helper\ConfigHelper;
@@ -25,8 +29,6 @@ use FastForward\Config\Helper\ConfigHelper;
  * Provides a configuration management system with dot notation access.
  * This class SHALL encapsulate configuration data using the DotAccessData library.
  * It MUST support nested keys and provide export, iteration, and dynamic update capabilities.
- *
- * @package FastForward\Config
  */
 final class ArrayConfig implements ConfigInterface
 {
@@ -46,9 +48,7 @@ final class ArrayConfig implements ConfigInterface
      */
     public function __construct(array $config = [])
     {
-        $this->data = new Data(
-            data: ConfigHelper::normalize($config),
-        );
+        $this->data = new Data(data: ConfigHelper::normalize($config));
     }
 
     /**
@@ -69,8 +69,8 @@ final class ArrayConfig implements ConfigInterface
      * If the value is a nested associative array, a new instance of ArrayConfig SHALL be returned.
      * If the key is not found and no default is provided, a MissingPathException SHOULD be thrown.
      *
-     * @param string $key     the configuration key to retrieve
-     * @param mixed  $default the default value to return if the key does not exist
+     * @param string $key the configuration key to retrieve
+     * @param mixed $default the default value to return if the key does not exist
      *
      * @return mixed|self the configuration value, or a nested ArrayConfig instance
      */
@@ -91,19 +91,23 @@ final class ArrayConfig implements ConfigInterface
      * If a value is provided, the key MUST be a string. If the input is an associative array
      * or another ConfigInterface instance, it SHALL be normalized before insertion.
      *
-     * @param array|ConfigInterface|string $key   the configuration key(s) or configuration object
-     * @param null|mixed                   $value the value to assign to the specified key, if applicable
+     * @param array|ConfigInterface|string $key the configuration key(s) or configuration object
+     * @param mixed|null $value the value to assign to the specified key, if applicable
+     *
+     * @return void
      *
      * @throws InvalidArgumentException if the key is not a string when a value is provided
      */
     public function set(array|ConfigInterface|string $key, mixed $value = null): void
     {
-        if (!empty($value)) {
-            if (!\is_string($key)) {
+        if (! empty($value)) {
+            if (! \is_string($key)) {
                 throw InvalidArgumentException::forNonStringKeyWithValue();
             }
 
-            $key = [$key => $value];
+            $key = [
+                $key => $value,
+            ];
         }
 
         if ($key instanceof ConfigInterface) {
@@ -119,6 +123,8 @@ final class ArrayConfig implements ConfigInterface
      * If the key does not exist, this method SHALL do nothing.
      *
      * @param string $key the configuration key to remove
+     *
+     * @return void
      */
     public function remove(string $key): void
     {
@@ -136,9 +142,9 @@ final class ArrayConfig implements ConfigInterface
      * For example:
      * ['database' => ['host' => 'localhost']] becomes ['database.host' => 'localhost'].
      *
-     * @return \Traversable<string, mixed> an iterator of flattened key-value pairs
+     * @return Traversable<string, mixed> an iterator of flattened key-value pairs
      */
-    public function getIterator(): \Traversable
+    public function getIterator(): Traversable
     {
         return ConfigHelper::flatten($this->toArray());
     }
