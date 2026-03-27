@@ -3,6 +3,9 @@
 
 **FastForward Config** is a modern, flexible, and high-performance PHP configuration library. It supports dot-notation, lazy loading, directory and provider aggregation, and PSR-16 caching. This documentation will guide you through installation, usage, advanced features, and internal architecture.
 
+Documentation
+=============
+
 Useful Links:
 -------------
 
