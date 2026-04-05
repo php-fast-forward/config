@@ -6,7 +6,7 @@
 
 ## ✨ Features
 
-- 🔑 Dot notation access: `config->get('app.env')`
+- 🔑 Dot notation access: `$config->get('app.env')`
 - 📁 Load from arrays, directories, or providers
 - ♻️ Lazy-loading with `__invoke()`
 - 🧩 Aggregation of multiple sources
@@ -29,8 +29,7 @@ composer require fast-forward/config
 ### Load configuration from multiple sources:
 
 ```php
-use FastForward\Config\{config, configDir, configCache};
-use Symfony\Component\Cache\Simple\FilesystemCache;
+use function FastForward\Config\config;
 
 $config = config(
     ['app' => ['env' => 'production']],
@@ -46,12 +45,10 @@ echo $config->get('app.env'); // "production"
 ### Cache configuration using PSR-16:
 
 ```php
-$cache = new FilesystemCache();
+use function FastForward\Config\configCache;
 
-$config = configCache(
-    cache: $cache,
-    ['foo' => 'bar']
-);
+/** @var \Psr\SimpleCache\CacheInterface $cache */
+$config = configCache($cache, ['foo' => 'bar']);
 
 echo $config->get('foo'); // "bar"
 ```
@@ -61,6 +58,8 @@ echo $config->get('foo'); // "bar"
 ### Load from a recursive directory:
 
 ```php
+use function FastForward\Config\configDir;
+
 $config = configDir(__DIR__ . '/config', recursive: true);
 ```
 
@@ -69,6 +68,8 @@ $config = configDir(__DIR__ . '/config', recursive: true);
 ### Use Laminas-style providers:
 
 ```php
+use function FastForward\Config\configProvider;
+
 $config = configProvider([
     new Vendor\Package\Provider1(),
     new Vendor\Package\Provider2(),
@@ -106,8 +107,8 @@ config/
 
 - `config(...$configs): ConfigInterface`
 - `configCache(CacheInterface $cache, ...$configs): ConfigInterface`
-- `configDir(string $dir, bool $recursive = false, ?string $cache = null): ConfigInterface`
-- `configProvider(iterable $providers, ?string $cache = null): ConfigInterface`
+- `configDir(string $rootDirectory, bool $recursive = false, ?string $cachedConfigFile = null): ConfigInterface`
+- `configProvider(iterable $providers, ?string $cachedConfigFile = null): ConfigInterface`
 
 ---
 

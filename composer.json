@@ -43,7 +43,8 @@
             "ergebnis/composer-normalize": true,
             "fast-forward/dev-tools": true,
             "phpdocumentor/shim": true,
-            "phpro/grumphp": true
+            "phpro/grumphp": true,
+            "pyrech/composer-changelogs": true
         },
         "platform": {
             "php": "8.3.0"

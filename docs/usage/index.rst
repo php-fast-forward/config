@@ -1,22 +1,19 @@
 Usage
 =====
 
-This section covers all main features of FastForward Config, with practical examples and detailed explanations.
+Once the package is installed, most questions fall into one of four buckets:
 
-**Key Features:**
+- How do I create the right kind of config object?
+- How do I read and change values safely?
+- How should I organize configuration files on disk?
+- What does a realistic application setup look like?
 
-- **Dot notation access:** Retrieve nested values easily: ``$config->get('app.env')``
-- **Load from arrays, directories, or providers:** Aggregate multiple sources seamlessly.
-- **Lazy-loading:** Config is only loaded and merged when first accessed, improving performance.
-- **Aggregation:** Merge as many config sources as you want, including arrays, directories, and provider classes.
-- **Recursive directory support:** Load all PHP config files from a directory tree.
-- **PSR-16 caching:** Optionally cache your config for fast repeated access.
-- **Laminas ConfigProvider compatibility:** Use Laminas-style providers out of the box.
-
-For each feature, see the examples below and in the :doc:`../getting-started/quickstart`.
+The pages below answer those questions in that order.
 
 .. toctree::
    :maxdepth: 2
 
+   getting-services
    access-mutation
    directory-structure
+   use-cases

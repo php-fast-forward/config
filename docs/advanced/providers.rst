@@ -1,36 +1,82 @@
-Laminas-style Providers
-=======================
+Provider-Based Configuration
+============================
 
-You can use Laminas-compatible configuration providers with FastForward Config. Providers are PHP classes that implement an ``__invoke()`` method returning an array of configuration data. This makes it easy to integrate with existing Laminas ecosystem or modularize your config.
+Providers are a good fit when configuration belongs to modules, packages, or bounded contexts. Each provider is simply an invokable class that returns an array.
 
-How it works
-------------
-- Each provider must be a class with an ``__invoke()`` method that returns an array.
-- You can pass provider objects or class names to ``configProvider()`` or ``config()``.
-- Providers are lazily invoked only when config is accessed.
-
-Example
--------
+Minimal Provider Example
+------------------------
 
 .. code-block:: php
 
-   class MyConfigProvider {
-       public function __invoke() {
+   final class BlogConfigProvider
+   {
+       public function __invoke(): array
+       {
            return [
-               'my' => [ 'setting' => true ]
+               'blog' => [
+                   'posts_per_page' => 10,
+               ],
            ];
        }
    }
 
+Loading Providers Explicitly
+----------------------------
+
+.. code-block:: php
+
+   use function FastForward\Config\configProvider;
+
    $config = configProvider([
-       new MyConfigProvider(),
+       new BlogConfigProvider(),
    ]);
 
-Tips
-----
-- You can mix providers, arrays, and directories in a single config aggregation.
-- Providers are great for dynamic or environment-based config.
+Mixing Providers With Other Sources
+-----------------------------------
 
-See also:
-- `Laminas Config Aggregator <https://docs.laminas.dev/laminas-config-aggregator/>`_
-- `Live Coverage Report <../../public/coverage/index.html>`_
+``config()`` can combine providers, arrays, and directories in a single call:
+
+.. code-block:: php
+
+   use function FastForward\Config\config;
+
+   $config = config(
+       ['app.env' => 'production'],
+       __DIR__ . '/config',
+       BlogConfigProvider::class,
+   );
+
+Provider Order
+--------------
+
+Provider order matters. Later providers override earlier values for the same keys while leaving unrelated nested values intact.
+
+.. code-block:: php
+
+   $config = configProvider([
+       new CoreConfigProvider(),
+       new FeatureFlagsProvider(),
+       new LocalOverridesProvider(),
+   ]);
+
+Using A Cache File
+------------------
+
+If you want provider aggregation to write a cache file, pass ``cachedConfigFile``:
+
+.. code-block:: php
+
+   $config = configProvider(
+       [
+           new CoreConfigProvider(),
+           new BlogConfigProvider(),
+       ],
+       cachedConfigFile: __DIR__ . '/../var/cache/providers.php',
+   );
+
+Good To Know
+------------
+
+- Providers are resolved lazily, not when you instantiate the config object.
+- Returning arrays with dot-notated keys is fine; ``ArrayConfig`` will normalize them.
+- ``config()`` automatically recognizes invokable provider class names, which makes simple examples shorter.
