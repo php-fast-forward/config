@@ -1,5 +1,12 @@
 # FastForward Config
 
+[![PHP Version](https://img.shields.io/badge/php-^8.3-777BB4?logo=php&logoColor=white)](https://www.php.net/releases/)
+[![Tests](https://img.shields.io/github/actions/workflow/status/php-fast-forward/config/tests.yml?logo=githubactions&logoColor=white&label=tests&color=22C55E)](https://github.com/php-fast-forward/config/actions/workflows/tests.yml)
+[![Coverage](https://img.shields.io/badge/coverage-phpunit-4ADE80?logo=php&logoColor=white)](https://php-fast-forward.github.io/config/coverage/index.html)
+[![Docs](https://img.shields.io/github/deployments/php-fast-forward/config/github-pages?logo=readthedocs&logoColor=white&label=docs&labelColor=1E293B&color=38BDF8&style=flat)](https://php-fast-forward.github.io/config/index.html)
+[![License](https://img.shields.io/github/license/php-fast-forward/config?color=64748B)](LICENSE)
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/php-fast-forward?logo=githubsponsors&logoColor=white&color=EC4899)](https://github.com/sponsors/php-fast-forward)
+
 **FastForward Config** is a flexible and modern PHP configuration library built for performance, extendability, and lazy-loading behavior. It supports dot-notation keys, recursive directory loading, Laminas-compliant configuration providers, and optional PSR-16 caching.
 
 ---
