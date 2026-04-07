@@ -3,6 +3,7 @@
 **FastForward Config** is a flexible and modern PHP configuration library built for performance, extendability, and lazy-loading behavior. It supports dot-notation keys, recursive directory loading, Laminas-compliant configuration providers, and optional PSR-16 caching.
 
 [![PHP Version](https://img.shields.io/badge/php-^8.3-777BB4?logo=php&logoColor=white)](https://www.php.net/releases/)
+[![Composer Package](https://img.shields.io/badge/composer-fast--forward%2Fconfig-F28D1A.svg?logo=composer&logoColor=white)](https://packagist.org/packages/fast-forward/config)
 [![Tests](https://img.shields.io/github/actions/workflow/status/php-fast-forward/config/tests.yml?logo=githubactions&logoColor=white&label=tests&color=22C55E)](https://github.com/php-fast-forward/config/actions/workflows/tests.yml)
 [![Coverage](https://img.shields.io/badge/coverage-phpunit-4ADE80?logo=php&logoColor=white)](https://php-fast-forward.github.io/config/coverage/index.html)
 [![Docs](https://img.shields.io/github/deployments/php-fast-forward/config/github-pages?logo=readthedocs&logoColor=white&label=docs&labelColor=1E293B&color=38BDF8&style=flat)](https://php-fast-forward.github.io/config/index.html)
@@ -33,7 +34,7 @@ composer require fast-forward/config
 
 ## 🚀 Quick Start
 
-### Load configuration from multiple sources:
+### Load configuration from multiple sources
 
 ```php
 use function FastForward\Config\config;
@@ -49,7 +50,7 @@ echo $config->get('app.env'); // "production"
 
 ---
 
-### Cache configuration using PSR-16:
+### Cache configuration using PSR-16
 
 ```php
 use function FastForward\Config\configCache;
@@ -62,7 +63,7 @@ echo $config->get('foo'); // "bar"
 
 ---
 
-### Load from a recursive directory:
+### Load from a recursive directory
 
 ```php
 use function FastForward\Config\configDir;
@@ -72,7 +73,7 @@ $config = configDir(__DIR__ . '/config', recursive: true);
 
 ---
 
-### Use Laminas-style providers:
+### Use Laminas-style providers
 
 ```php
 use function FastForward\Config\configProvider;
@@ -100,7 +101,7 @@ print_r($config->toArray());
 
 ## 📁 Directory Structure Example
 
-```
+```plain
 config/
 ├── app.php
 ├── db.php
