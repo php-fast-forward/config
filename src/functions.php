@@ -41,6 +41,10 @@ function config(array|ConfigInterface|string ...$configs): ConfigInterface
             $configs[$index] = configDir($config, true);
         }
 
+        if (\is_string($config) && is_file($config) && is_readable($config)) {
+            $configs[$index] = new PhpFileConfig($config);
+        }
+
         if (\is_string($config)
             && class_exists($config)
             && method_exists($config, '__invoke')
@@ -51,6 +55,7 @@ function config(array|ConfigInterface|string ...$configs): ConfigInterface
 
     return new AggregateConfig(...$configs);
 }
+
 
 /**
  * Creates a cached configuration object from various sources.
@@ -105,3 +110,23 @@ function configProvider(iterable $providers, ?string $cachedConfigFile = null): 
 {
     return new LamiasConfigAggregatorConfig(providers: $providers, cachedConfigFile: $cachedConfigFile);
 }
+
+/**
+ * Creates a PHP file configuration provider.
+ *
+ * Configuration files MUST follow the PHP file format and return an array.
+ *
+ * @param string $file the path to the PHP configuration file
+ * @param bool $persistent whether changes should be saved back to the file
+ * @param array<string, mixed>|ConfigInterface|null $defaultConfig optional default configuration when the file does not exist
+ *
+ * @return ConfigInterface the resulting configuration instance
+ */
+function configFile(
+    string $file,
+    bool $persistent = false,
+    array|ConfigInterface|null $defaultConfig = null,
+): ConfigInterface {
+    return new PhpFileConfig(file: $file, persistent: $persistent, defaultConfig: $defaultConfig);
+}
+

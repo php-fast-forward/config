@@ -24,7 +24,11 @@ The package exposes a small set of public types. Most users touch only the facto
    * - ``RecursiveDirectoryConfig``
      - Lazy loader for PHP files in a directory tree.
      - Your config is split across nested folders.
+   * - ``PhpFileConfig``
+     - Lazy loader for a single PHP file with optional persistence.
+     - Your config is stored in a single PHP file, or you want write-through changes.
    * - ``LamiasConfigAggregatorConfig``
+
      - Bridge to Laminas ConfigAggregator.
      - You want provider-based aggregation directly.
    * - ``CachedConfig``
@@ -72,7 +76,19 @@ These classes load PHP files from disk:
 - Both validate that the directory exists and is readable.
 - Both support an optional cache file path through Laminas ConfigAggregator.
 
+PhpFileConfig
+-------------
+
+``PhpFileConfig`` loads configuration from a single PHP file returning an array.
+
+Important constructor options:
+
+- ``file``: path to the PHP configuration file.
+- ``persistent``: whether ``set()`` and ``remove()`` should write changes back to the PHP file.
+- ``defaultConfig``: optional default configuration used when the file does not yet exist.
+
 LamiasConfigAggregatorConfig
+
 ----------------------------
 
 This class is the direct bridge around ``Laminas\\ConfigAggregator\\ConfigAggregator``. Use it when you want provider-based config aggregation without going through the helper functions.

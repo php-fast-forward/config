@@ -56,4 +56,53 @@ final class InvalidArgumentExceptionTest extends TestCase
             $exception->getMessage(),
         );
     }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testForUnreadableFileWillReturnExpectedMessage(): void
+    {
+        $file      = '/invalid/file/path.php';
+        $exception = InvalidArgumentException::forUnreadableFile($file);
+
+        self::assertInstanceOf(InvalidArgumentException::class, $exception);
+        self::assertSame(
+            \sprintf('The file "%s" does not exist or is not readable.', $file),
+            $exception->getMessage(),
+        );
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testForUnwritableFileWillReturnExpectedMessage(): void
+    {
+        $file      = '/invalid/file/path.php';
+        $exception = InvalidArgumentException::forUnwritableFile($file);
+
+        self::assertInstanceOf(InvalidArgumentException::class, $exception);
+        self::assertSame(
+            \sprintf('The file "%s" is not writable.', $file),
+            $exception->getMessage(),
+        );
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testForInvalidConfigFileWillReturnExpectedMessage(): void
+    {
+        $file      = '/invalid/file/path.php';
+        $exception = InvalidArgumentException::forInvalidConfigFile($file);
+
+        self::assertInstanceOf(InvalidArgumentException::class, $exception);
+        self::assertSame(
+            \sprintf('The configuration file "%s" must return an array.', $file),
+            $exception->getMessage(),
+        );
+    }
 }
+
