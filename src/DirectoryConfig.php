@@ -28,9 +28,9 @@ use Laminas\ConfigAggregator\PhpFileProvider;
  * This class MUST validate the target directory and use the Laminas PhpFileProvider to collect configurations.
  * It MAY cache the aggregated result if a cached config file path is provided.
  *
- * @extends LamiasConfigAggregatorConfig
+ * @extends LaminasConfigAggregatorConfig
  */
-class DirectoryConfig extends LamiasConfigAggregatorConfig implements ConfigInterface
+class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInterface
 {
     use LazyLoadConfigTrait;
 

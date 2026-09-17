@@ -21,13 +21,13 @@ namespace FastForward\Config;
 use Laminas\ConfigAggregator\ConfigAggregator;
 
 /**
- * Class LamiasConfigAggregatorConfig.
+ * Class LaminasConfigAggregatorConfig.
  *
  * Integrates Laminas\ConfigAggregator for collecting configuration data from multiple providers.
  * This class MUST support optional caching of the merged configuration using a defined file path.
  * It SHALL return an ArrayConfig with the aggregated data upon invocation.
  */
-class LamiasConfigAggregatorConfig implements ConfigInterface
+class LaminasConfigAggregatorConfig implements ConfigInterface
 {
     use LazyLoadConfigTrait;
 

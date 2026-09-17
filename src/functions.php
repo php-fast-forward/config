@@ -108,7 +108,7 @@ function configDir(
  */
 function configProvider(iterable $providers, ?string $cachedConfigFile = null): ConfigInterface
 {
-    return new LamiasConfigAggregatorConfig(providers: $providers, cachedConfigFile: $cachedConfigFile);
+    return new LaminasConfigAggregatorConfig(providers: $providers, cachedConfigFile: $cachedConfigFile);
 }
 
 /**

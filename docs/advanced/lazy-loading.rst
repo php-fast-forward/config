@@ -11,7 +11,7 @@ The following types resolve themselves on first use:
 - ``AggregateConfig``
 - ``DirectoryConfig``
 - ``RecursiveDirectoryConfig``
-- ``LamiasConfigAggregatorConfig``
+- ``LaminasConfigAggregatorConfig``
 - ``CachedConfig``
 
 ``ArrayConfig`` is the main eager implementation because it already has all data in memory.
