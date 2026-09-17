@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-17
+
 ### Added
 
 - Add PhpFileConfig with optional persistence and configFile() helper
@@ -99,7 +101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Helper functions config(), configCache(), configDir(), and configProvider()
 
 
-[unreleased]: https://github.com/php-fast-forward/config/compare/v1.4.0...HEAD
+[unreleased]: https://github.com/php-fast-forward/config/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/php-fast-forward/config/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/php-fast-forward/config/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/php-fast-forward/config/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/php-fast-forward/config/compare/v1.1.4...v1.2.0
