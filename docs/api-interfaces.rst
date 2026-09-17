@@ -91,6 +91,9 @@ LaminasConfigAggregatorConfig
 
 This class is the direct bridge around ``Laminas\\ConfigAggregator\\ConfigAggregator``. Use it when you want provider-based config aggregation without going through the helper functions.
 
+.. note::
+   The previous spelling ``LamiasConfigAggregatorConfig`` is retained as a deprecated alias extending this class for backward compatibility.
+
 CachedConfig
 ------------
 

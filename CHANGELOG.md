@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement atomic file persistence using brick/varexporter and temporary files in PhpFileConfig
 - Restrict automatic PHP file detection in config() helper to files ending with .php
 
+### Deprecated
+
+- Deprecate LamiasConfigAggregatorConfig in favor of LaminasConfigAggregatorConfig
+
 ### Fixed
 
 - Allow setting falsy values (false, 0, '0', '', null) with string keys in ArrayConfig::set()
@@ -26,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserve restrictive file permissions when atomically persisting configuration
 - Preserve symlink targets and update real file target during persistent writes
 - Verify complete byte count on temporary file write to prevent partial file corruption
+- Rename typo LamiasConfigAggregatorConfig to LaminasConfigAggregatorConfig while retaining LamiasConfigAggregatorConfig as a deprecated compatibility alias
 
 ## [1.4.0] - 2025-06-11
 
