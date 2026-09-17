@@ -59,6 +59,11 @@ final class PhpFileConfigTest extends TestCase
         if (file_exists($this->tempFile)) {
             unlink($this->tempFile);
         }
+
+        $lockFile = \dirname($this->tempFile) . '/.' . \basename($this->tempFile) . '.lock';
+        if (file_exists($lockFile)) {
+            @unlink($lockFile);
+        }
     }
 
     /**
@@ -203,6 +208,10 @@ final class PhpFileConfigTest extends TestCase
                 'new_key' => 'new_val',
             ], $reloaded->toArray());
         } finally {
+            $lockFile = $subDir . '/.config.php.lock';
+            if (file_exists($lockFile)) {
+                @unlink($lockFile);
+            }
             if (file_exists($filePath)) {
                 unlink($filePath);
             }
@@ -412,6 +421,10 @@ final class PhpFileConfigTest extends TestCase
         file_put_contents($this->tempFile, '<?php return ["foo" => "bar"];');
         chmod($this->tempFile, 0444);
 
+        if (is_writable($this->tempFile)) {
+            self::markTestSkipped('Current environment (e.g. running as root) bypasses read-only file permissions.');
+        }
+
         try {
             $config = new PhpFileConfig($this->tempFile, persistent: true);
             $this->expectException(InvalidArgumentException::class);
@@ -441,6 +454,77 @@ final class PhpFileConfigTest extends TestCase
                 fclose($resource);
             }
         }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testPersistentMutationsAcrossMultipleInstancesDoNotOverwriteEachOther(): void
+    {
+        $instanceA = new PhpFileConfig(
+            file: $this->tempFile,
+            persistent: true,
+            defaultConfig: ['initial' => 'value'],
+        );
+
+        $instanceB = new PhpFileConfig(
+            file: $this->tempFile,
+            persistent: true,
+            defaultConfig: ['initial' => 'value'],
+        );
+
+        // Instance A sets key 'foo'
+        $instanceA->set('foo', 'from_a');
+
+        // Instance B sets key 'bar'
+        $instanceB->set('bar', 'from_b');
+
+        // The persisted file should contain both 'foo' and 'bar'
+        $reloaded = new PhpFileConfig($this->tempFile);
+        self::assertSame([
+            'initial' => 'value',
+            'foo'     => 'from_a',
+            'bar'     => 'from_b',
+        ], $reloaded->toArray());
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testPersistentRemoveAcrossMultipleInstancesDoNotOverwriteEachOther(): void
+    {
+        $instanceA = new PhpFileConfig(
+            file: $this->tempFile,
+            persistent: true,
+            defaultConfig: [
+                'initial' => 'value',
+                'keep'    => 'remains',
+            ],
+        );
+
+        $instanceB = new PhpFileConfig(
+            file: $this->tempFile,
+            persistent: true,
+            defaultConfig: [
+                'initial' => 'value',
+                'keep'    => 'remains',
+            ],
+        );
+
+        // Instance A removes 'initial'
+        $instanceA->remove('initial');
+
+        // Instance B sets key 'extra'
+        $instanceB->set('extra', 'added');
+
+        // The persisted file should have 'keep' and 'extra', but not 'initial'
+        $reloaded = new PhpFileConfig($this->tempFile);
+        self::assertSame([
+            'keep'  => 'remains',
+            'extra' => 'added',
+        ], $reloaded->toArray());
     }
 }
 

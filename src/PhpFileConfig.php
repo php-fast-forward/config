@@ -60,6 +60,67 @@ final class PhpFileConfig implements ConfigInterface
      */
     public function __invoke(): ConfigInterface
     {
+        return $this->loadConfig();
+    }
+
+    /**
+     * Sets configuration data.
+     *
+     * This method MUST update the configuration data in the file if the persistent flag is set to true.
+     *
+     * @param array<string, mixed>|ConfigInterface|string $key the configuration key or an array of key-value pairs to set
+     * @param mixed $value the value to set for the specified key
+     *
+     * @return void
+     *
+     * @throws InvalidArgumentException if the key is invalid or file cannot be written
+     */
+    public function set(array|ConfigInterface|string $key, mixed $value = null): void
+    {
+        if (! $this->persistent) {
+            $this->getConfig()->set($key, $value);
+
+            return;
+        }
+
+        $this->mutate(static function (ConfigInterface $config) use ($key, $value): void {
+            $config->set($key, $value);
+        });
+    }
+
+    /**
+     * Removes a configuration key and its associated value.
+     *
+     * This method MUST update the configuration data in the file if the persistent flag is set to true.
+     *
+     * @param string $key the configuration key to remove
+     *
+     * @return void
+     *
+     * @throws InvalidArgumentException if the file cannot be written
+     */
+    public function remove(string $key): void
+    {
+        if (! $this->persistent) {
+            $this->getConfig()->remove($key);
+
+            return;
+        }
+
+        $this->mutate(static function (ConfigInterface $config) use ($key): void {
+            $config->remove($key);
+        });
+    }
+
+    /**
+     * Loads the configuration from the file or default configuration.
+     *
+     * @return ConfigInterface
+     *
+     * @throws InvalidArgumentException if the file is unreadable or does not return an array
+     */
+    private function loadConfig(): ConfigInterface
+    {
         if (! file_exists($this->file)) {
             if ($this->defaultConfig !== null) {
                 $data = $this->defaultConfig instanceof ConfigInterface
@@ -88,45 +149,52 @@ final class PhpFileConfig implements ConfigInterface
     }
 
     /**
-     * Sets configuration data.
+     * Executes a persistent mutation under an exclusive process lock.
      *
-     * This method MUST update the configuration data in the file if the persistent flag is set to true.
-     *
-     * @param array<string, mixed>|ConfigInterface|string $key the configuration key or an array of key-value pairs to set
-     * @param mixed $value the value to set for the specified key
+     * @param callable(ConfigInterface): void $operation
      *
      * @return void
      *
-     * @throws InvalidArgumentException if the key is invalid or file cannot be written
+     * @throws InvalidArgumentException if the lock or file cannot be written
      */
-    public function set(array|ConfigInterface|string $key, mixed $value = null): void
+    private function mutate(callable $operation): void
     {
-        $config = $this->getConfig();
-        $config->set($key, $value);
+        $dir = \dirname($this->file);
 
-        if ($this->persistent) {
-            $this->dump($config->toArray());
+        if (! is_dir($dir)) {
+            if (! @mkdir($dir, 0777, true) && ! is_dir($dir)) {
+                throw InvalidArgumentException::forUnwritableFile($this->file);
+            }
+        } elseif (! is_writable($dir)) {
+            throw InvalidArgumentException::forUnwritableFile($this->file);
         }
-    }
 
-    /**
-     * Removes a configuration key and its associated value.
-     *
-     * This method MUST update the configuration data in the file if the persistent flag is set to true.
-     *
-     * @param string $key the configuration key to remove
-     *
-     * @return void
-     *
-     * @throws InvalidArgumentException if the file cannot be written
-     */
-    public function remove(string $key): void
-    {
-        $config = $this->getConfig();
-        $config->remove($key);
+        if (file_exists($this->file) && (! is_file($this->file) || ! is_writable($this->file))) {
+            throw InvalidArgumentException::forUnwritableFile($this->file);
+        }
 
-        if ($this->persistent) {
-            $this->dump($config->toArray());
+        $lockPath = $dir . '/.' . \basename($this->file) . '.lock';
+        $lockFp   = @fopen($lockPath, 'c+');
+
+        if (false === $lockFp) {
+            throw InvalidArgumentException::forUnwritableFile($this->file);
+        }
+
+        try {
+            if (! @flock($lockFp, \LOCK_EX)) {
+                throw InvalidArgumentException::forUnwritableFile($this->file);
+            }
+
+            try {
+                $config = $this->loadConfig();
+                $operation($config);
+                $this->dump($config->toArray());
+                $this->config = $config;
+            } finally {
+                @flock($lockFp, \LOCK_UN);
+            }
+        } finally {
+            @fclose($lockFp);
         }
     }
 
@@ -178,6 +246,10 @@ final class PhpFileConfig implements ConfigInterface
         if (! @rename($tmpFile, $this->file)) {
             @unlink($tmpFile);
             throw InvalidArgumentException::forUnwritableFile($this->file);
+        }
+
+        if (\function_exists('opcache_invalidate')) {
+            @opcache_invalidate($this->file, true);
         }
     }
 }

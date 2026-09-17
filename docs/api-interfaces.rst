@@ -88,7 +88,6 @@ Important constructor options:
 - ``defaultConfig``: optional default configuration used when the file does not yet exist.
 
 LamiasConfigAggregatorConfig
-
 ----------------------------
 
 This class is the direct bridge around ``Laminas\\ConfigAggregator\\ConfigAggregator``. Use it when you want provider-based config aggregation without going through the helper functions.
