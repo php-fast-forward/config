@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow setting falsy values (false, 0, '0', '', null) with string keys in ArrayConfig::set()
 - Synchronize multi-instance persistent file mutations via sidecar process locking and fresh file reloads in PhpFileConfig
 - Correct Sphinx section underline markup for LamiasConfigAggregatorConfig in docs/api-interfaces.rst
+- Preserve restrictive file permissions when atomically persisting configuration
+- Preserve symlink targets and update real file target during persistent writes
+- Verify complete byte count on temporary file write to prevent partial file corruption
 
 ## [1.4.0] - 2025-06-11
 

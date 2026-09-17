@@ -159,7 +159,8 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function mutate(callable $operation): void
     {
-        $dir = \dirname($this->file);
+        $targetFile = $this->resolveTargetFile();
+        $dir        = \dirname($targetFile);
 
         if (! is_dir($dir)) {
             if (! @mkdir($dir, 0777, true) && ! is_dir($dir)) {
@@ -169,11 +170,11 @@ final class PhpFileConfig implements ConfigInterface
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        if (file_exists($this->file) && (! is_file($this->file) || ! is_writable($this->file))) {
+        if (file_exists($targetFile) && (! is_file($targetFile) || ! is_writable($targetFile))) {
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        $lockPath = $dir . '/.' . \basename($this->file) . '.lock';
+        $lockPath = $dir . '/.' . \basename($targetFile) . '.lock';
         $lockFp   = @fopen($lockPath, 'c+');
 
         if (false === $lockFp) {
@@ -188,7 +189,7 @@ final class PhpFileConfig implements ConfigInterface
             try {
                 $config = $this->loadConfig();
                 $operation($config);
-                $this->dump($config->toArray());
+                $this->dump($config->toArray(), $targetFile);
                 $this->config = $config;
             } finally {
                 @flock($lockFp, \LOCK_UN);
@@ -202,14 +203,16 @@ final class PhpFileConfig implements ConfigInterface
      * Dumps the configuration array to the PHP file.
      *
      * @param array<array-key, mixed> $data the configuration data to write
+     * @param string|null $targetFile optional target file override (e.g. resolved symlink target)
      *
      * @return void
      *
      * @throws InvalidArgumentException if the file or directory is not writable, or cannot be exported
      */
-    private function dump(array $data): void
+    private function dump(array $data, ?string $targetFile = null): void
     {
-        $dir = \dirname($this->file);
+        $targetFile ??= $this->resolveTargetFile();
+        $dir = \dirname($targetFile);
 
         if (! is_dir($dir)) {
             if (! @mkdir($dir, 0777, true) && ! is_dir($dir)) {
@@ -219,7 +222,7 @@ final class PhpFileConfig implements ConfigInterface
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        if (file_exists($this->file) && (! is_file($this->file) || ! is_writable($this->file))) {
+        if (file_exists($targetFile) && (! is_file($targetFile) || ! is_writable($targetFile))) {
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
@@ -236,20 +239,51 @@ final class PhpFileConfig implements ConfigInterface
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        if (false === @file_put_contents($tmpFile, $content, \LOCK_EX)) {
+        $bytesWritten = @file_put_contents($tmpFile, $content, \LOCK_EX);
+        if ($bytesWritten !== \strlen($content)) {
             @unlink($tmpFile);
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        @chmod($tmpFile, 0666 & ~umask());
+        $existingPerms = file_exists($targetFile) ? @fileperms($targetFile) : false;
+        $mode          = false !== $existingPerms ? ($existingPerms & 0777) : (0666 & ~umask());
+        @chmod($tmpFile, $mode);
 
-        if (! @rename($tmpFile, $this->file)) {
+        if (! @rename($tmpFile, $targetFile)) {
             @unlink($tmpFile);
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
         if (\function_exists('opcache_invalidate')) {
-            @opcache_invalidate($this->file, true);
+            @opcache_invalidate($targetFile, true);
         }
+    }
+
+    /**
+     * Resolves the target file path, resolving symlinks to their canonical target.
+     *
+     * @return string
+     */
+    private function resolveTargetFile(): string
+    {
+        if (! is_link($this->file)) {
+            return $this->file;
+        }
+
+        $resolved = realpath($this->file);
+        if (false !== $resolved) {
+            return $resolved;
+        }
+
+        $target = readlink($this->file);
+        if (false === $target) {
+            return $this->file;
+        }
+
+        if (! str_starts_with($target, '/')) {
+            return \dirname($this->file) . '/' . $target;
+        }
+
+        return $target;
     }
 }

@@ -526,5 +526,61 @@ final class PhpFileConfigTest extends TestCase
             'extra' => 'added',
         ], $reloaded->toArray());
     }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testPersistentMutationPreservesRestrictiveFilePermissions(): void
+    {
+        file_put_contents($this->tempFile, '<?php return ["secret" => "initial"];');
+        chmod($this->tempFile, 0600);
+
+        $initialPerms = fileperms($this->tempFile) & 0777;
+
+        $config = new PhpFileConfig($this->tempFile, persistent: true);
+        $config->set('secret', 'updated');
+
+        $updatedPerms = fileperms($this->tempFile) & 0777;
+        self::assertSame($initialPerms, $updatedPerms);
+        self::assertSame(0600, $updatedPerms);
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testPersistentMutationPreservesSymlinkTarget(): void
+    {
+        $realFile    = sys_get_temp_dir() . \DIRECTORY_SEPARATOR . uniqid('real_cfg_', true) . '.php';
+        $symlinkFile = sys_get_temp_dir() . \DIRECTORY_SEPARATOR . uniqid('symlink_cfg_', true) . '.php';
+
+        file_put_contents($realFile, '<?php return ["env" => "prod"];');
+
+        if (! @symlink($realFile, $symlinkFile)) {
+            unlink($realFile);
+            self::markTestSkipped('Symlinks cannot be created in this environment.');
+        }
+
+        try {
+            $config = new PhpFileConfig($symlinkFile, persistent: true);
+            $config->set('env', 'staging');
+
+            self::assertTrue(is_link($symlinkFile));
+            $reloadedReal = new PhpFileConfig($realFile);
+            self::assertSame(['env' => 'staging'], $reloadedReal->toArray());
+        } finally {
+            if (is_link($symlinkFile) || file_exists($symlinkFile)) {
+                unlink($symlinkFile);
+            }
+            if (file_exists($realFile)) {
+                unlink($realFile);
+            }
+            $realLock = \dirname($realFile) . '/.' . \basename($realFile) . '.lock';
+            if (file_exists($realLock)) {
+                @unlink($realLock);
+            }
+        }
+    }
 }
 
