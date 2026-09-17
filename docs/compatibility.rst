@@ -18,7 +18,7 @@ Compatibility
      - ``configCache()`` and ``CachedConfig`` accept any ``Psr\SimpleCache\CacheInterface`` implementation.
    * - Laminas ConfigAggregator providers
      - Supported
-     - ``configProvider()`` and ``LamiasConfigAggregatorConfig`` integrate with Laminas provider workflows.
+     - ``configProvider()`` and ``LaminasConfigAggregatorConfig`` integrate with Laminas provider workflows.
    * - PHP files returning arrays
      - Supported
      - ``DirectoryConfig`` and ``RecursiveDirectoryConfig`` load ``*.php`` files from disk.

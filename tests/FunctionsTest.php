@@ -25,7 +25,7 @@ use FastForward\Config\ConfigInterface;
 use FastForward\Config\DirectoryConfig;
 use FastForward\Config\Exception\InvalidArgumentException;
 use FastForward\Config\Helper\ConfigHelper;
-use FastForward\Config\LamiasConfigAggregatorConfig;
+use FastForward\Config\LaminasConfigAggregatorConfig;
 use FastForward\Config\LazyLoadConfigTrait;
 use FastForward\Config\PhpFileConfig;
 use FastForward\Config\RecursiveDirectoryConfig;
@@ -61,7 +61,7 @@ use function FastForward\Config\configProvider;
 #[UsesClass(InvalidArgumentException::class)]
 #[UsesClass(PhpFileConfig::class)]
 #[UsesClass(RecursiveDirectoryConfig::class)]
-#[UsesClass(LamiasConfigAggregatorConfig::class)]
+#[UsesClass(LaminasConfigAggregatorConfig::class)]
 #[UsesTrait(LazyLoadConfigTrait::class)]
 
 final class FunctionsTest extends TestCase
@@ -160,7 +160,7 @@ final class FunctionsTest extends TestCase
 
         $config = configProvider([$provider]);
 
-        self::assertInstanceOf(LamiasConfigAggregatorConfig::class, $config);
+        self::assertInstanceOf(LaminasConfigAggregatorConfig::class, $config);
         self::assertSame([
             'foo' => 'bar',
         ], $config->toArray());

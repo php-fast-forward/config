@@ -27,8 +27,7 @@ The package exposes a small set of public types. Most users touch only the facto
    * - ``PhpFileConfig``
      - Lazy loader for a single PHP file with optional persistence.
      - Your config is stored in a single PHP file, or you want write-through changes.
-   * - ``LamiasConfigAggregatorConfig``
-
+   * - ``LaminasConfigAggregatorConfig``
      - Bridge to Laminas ConfigAggregator.
      - You want provider-based aggregation directly.
    * - ``CachedConfig``
@@ -87,12 +86,13 @@ Important constructor options:
 - ``persistent``: whether ``set()`` and ``remove()`` should write changes back to the PHP file.
 - ``defaultConfig``: optional default configuration used when the file does not yet exist.
 
-LamiasConfigAggregatorConfig
-----------------------------
+LaminasConfigAggregatorConfig
+-----------------------------
 
 This class is the direct bridge around ``Laminas\\ConfigAggregator\\ConfigAggregator``. Use it when you want provider-based config aggregation without going through the helper functions.
 
-The public class name is exactly ``LamiasConfigAggregatorConfig`` because that is what the package exports today.
+.. note::
+   The previous spelling ``LamiasConfigAggregatorConfig`` is retained as a deprecated alias extending this class for backward compatibility.
 
 CachedConfig
 ------------
