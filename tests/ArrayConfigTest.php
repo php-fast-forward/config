@@ -22,6 +22,7 @@ use FastForward\Config\ArrayConfig;
 use FastForward\Config\Exception\InvalidArgumentException;
 use FastForward\Config\Helper\ConfigHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -115,6 +116,36 @@ final class ArrayConfigTest extends TestCase
         self::assertSame([
             $key => $val,
         ], $config->toArray());
+    }
+
+    /**
+     * @param mixed $value
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('falsyValuesProvider')]
+    public function testSetWithFalsyValues(mixed $value): void
+    {
+        $key    = 'test.' . uniqid('falsy_');
+        $config = new ArrayConfig();
+        $config->set($key, $value);
+
+        self::assertSame($value, $config->get($key));
+    }
+
+    /**
+     * @return array<string, array{mixed}>
+     */
+    public static function falsyValuesProvider(): array
+    {
+        return [
+            'boolean false' => [false],
+            'integer zero'  => [0],
+            'string zero'   => ['0'],
+            'empty string'  => [''],
+            'null value'    => [null],
+        ];
     }
 
     /**

@@ -23,9 +23,11 @@ use FastForward\Config\ArrayConfig;
 use FastForward\Config\CachedConfig;
 use FastForward\Config\ConfigInterface;
 use FastForward\Config\DirectoryConfig;
+use FastForward\Config\Exception\InvalidArgumentException;
 use FastForward\Config\Helper\ConfigHelper;
 use FastForward\Config\LamiasConfigAggregatorConfig;
 use FastForward\Config\LazyLoadConfigTrait;
+use FastForward\Config\PhpFileConfig;
 use FastForward\Config\RecursiveDirectoryConfig;
 use FastForward\Config\Tests\Stub\ConfigProvider;
 use PHPUnit\Framework\Attributes\CoversFunction;
@@ -40,6 +42,7 @@ use Psr\SimpleCache\CacheInterface;
 use function FastForward\Config\config;
 use function FastForward\Config\configCache;
 use function FastForward\Config\configDir;
+use function FastForward\Config\configFile;
 use function FastForward\Config\configProvider;
 
 /**
@@ -48,15 +51,19 @@ use function FastForward\Config\configProvider;
 #[CoversFunction('FastForward\Config\config')]
 #[CoversFunction('FastForward\Config\configCache')]
 #[CoversFunction('FastForward\Config\configDir')]
+#[CoversFunction('FastForward\Config\configFile')]
 #[CoversFunction('FastForward\Config\configProvider')]
 #[UsesClass(AggregateConfig::class)]
 #[UsesClass(ArrayConfig::class)]
 #[UsesClass(ConfigHelper::class)]
 #[UsesClass(CachedConfig::class)]
 #[UsesClass(DirectoryConfig::class)]
+#[UsesClass(InvalidArgumentException::class)]
+#[UsesClass(PhpFileConfig::class)]
 #[UsesClass(RecursiveDirectoryConfig::class)]
 #[UsesClass(LamiasConfigAggregatorConfig::class)]
 #[UsesTrait(LazyLoadConfigTrait::class)]
+
 final class FunctionsTest extends TestCase
 {
     use ProphecyTrait;
@@ -179,4 +186,78 @@ final class FunctionsTest extends TestCase
         unlink($filePath);
         rmdir($directory);
     }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testConfigFileReturnsPhpFileConfigInstance(): void
+    {
+        $filePath = sys_get_temp_dir() . '/file_test_' . uniqid() . '.php';
+        file_put_contents($filePath, '<?php return ["foo" => "bar"];');
+
+        $config = configFile($filePath);
+
+        self::assertInstanceOf(PhpFileConfig::class, $config);
+        self::assertSame('bar', $config->get('foo'));
+
+        unlink($filePath);
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testConfigWillLoadPhpFileWhenStringIsFile(): void
+    {
+        $filePath = sys_get_temp_dir() . '/file_test_' . uniqid() . '.php';
+        file_put_contents($filePath, '<?php return ["foo" => "bar"];');
+
+        $result = config($filePath);
+
+        self::assertInstanceOf(ConfigInterface::class, $result);
+        self::assertSame('bar', $result->get('foo'));
+
+        unlink($filePath);
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testConfigWithUnreadablePhpFileThrowsInvalidArgumentException(): void
+    {
+        $filePath = sys_get_temp_dir() . '/unreadable_' . uniqid() . '.php';
+        touch($filePath);
+        chmod($filePath, 0000);
+
+        try {
+            $result = config($filePath);
+            self::assertInstanceOf(ConfigInterface::class, $result);
+
+            $this->expectException(InvalidArgumentException::class);
+            $result->get('foo');
+        } finally {
+            chmod($filePath, 0644);
+            unlink($filePath);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testConfigDoesNotLoadNonPhpFileAsPhpFileConfig(): void
+    {
+        $filePath = sys_get_temp_dir() . '/test_' . uniqid() . '.json';
+        file_put_contents($filePath, '{"foo": "bar"}');
+
+        try {
+            $this->expectException(\TypeError::class);
+            config($filePath);
+        } finally {
+            unlink($filePath);
+        }
+    }
 }
+

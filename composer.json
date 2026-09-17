@@ -14,8 +14,19 @@
         "issues": "https://github.com/php-fast-forward/config/issues",
         "source": "https://github.com/php-fast-forward/config"
     },
+    "funding": [
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/php-fast-forward"
+        },
+        {
+            "type": "custom",
+            "url": "https://www.paypal.com/donate/?business=JLDAF45XZ8D84"
+        }
+    ],
     "require": {
         "php": "^8.3",
+        "brick/varexporter": "^0.5 || ^0.6 || ^0.7",
         "dflydev/dot-access-data": "^3.0",
         "laminas/laminas-config-aggregator": "^1.13",
         "psr/container": "^1.0 || ^2.0",
@@ -44,6 +55,7 @@
             "fast-forward/dev-tools": true,
             "phpdocumentor/shim": true,
             "phpro/grumphp": true,
+            "phpro/grumphp-shim": true,
             "pyrech/composer-changelogs": true
         },
         "platform": {

@@ -48,4 +48,41 @@ final class InvalidArgumentException extends \InvalidArgumentException
     {
         return new self(\sprintf('The directory "%s" does not exist or is not readable.', $directory));
     }
+
+    /**
+     * Thrown when a given file does not exist or is not readable.
+     *
+     * @param string $file the path to the invalid file
+     *
+     * @return self the exception indicating an invalid or unreadable file
+     */
+    public static function forUnreadableFile(string $file): self
+    {
+        return new self(\sprintf('The file "%s" does not exist or is not readable.', $file));
+    }
+
+    /**
+     * Thrown when a configuration file is not writable.
+     *
+     * @param string $file the path to the unwritable file
+     *
+     * @return self the exception indicating an unwritable file
+     */
+    public static function forUnwritableFile(string $file): self
+    {
+        return new self(\sprintf('The file "%s" is not writable.', $file));
+    }
+
+    /**
+     * Thrown when a configuration file does not return an array.
+     *
+     * @param string $file the path to the configuration file
+     *
+     * @return self the exception indicating an invalid configuration file
+     */
+    public static function forInvalidConfigFile(string $file): self
+    {
+        return new self(\sprintf('The configuration file "%s" must return an array.', $file));
+    }
 }
+

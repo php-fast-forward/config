@@ -15,12 +15,13 @@
 ## ✨ Features
 
 - 🔑 Dot notation access: `$config->get('app.env')`
-- 📁 Load from arrays, directories, or providers
+- 📁 Load from arrays, PHP files, directories, or providers
+- 💾 Optional persistence for single PHP files and PSR-16 cache
 - ♻️ Lazy-loading with `__invoke()`
 - 🧩 Aggregation of multiple sources
 - 🗂 Recursive directory support
-- 💾 Optional PSR-16 compatible caching
 - 🔌 Compatible with Laminas ConfigProviders
+
 
 ---
 
@@ -59,6 +60,18 @@ use function FastForward\Config\configCache;
 $config = configCache($cache, ['foo' => 'bar']);
 
 echo $config->get('foo'); // "bar"
+```
+
+---
+
+### Load from a single PHP file (with optional persistence)
+
+```php
+use function FastForward\Config\configFile;
+
+$config = configFile(__DIR__ . '/config.php', persistent: true);
+
+$config->set('app.env', 'staging'); // Persists changes back to config.php
 ```
 
 ---
@@ -114,9 +127,11 @@ config/
 ## 🧰 API Summary
 
 - `config(...$configs): ConfigInterface`
+- `configFile(string $file, bool $persistent = false, array|ConfigInterface|null $defaultConfig = null): ConfigInterface`
 - `configCache(CacheInterface $cache, ...$configs): ConfigInterface`
 - `configDir(string $rootDirectory, bool $recursive = false, ?string $cachedConfigFile = null): ConfigInterface`
 - `configProvider(iterable $providers, ?string $cachedConfigFile = null): ConfigInterface`
+
 
 ---
 
