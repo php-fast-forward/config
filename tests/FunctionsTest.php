@@ -23,6 +23,7 @@ use FastForward\Config\ArrayConfig;
 use FastForward\Config\CachedConfig;
 use FastForward\Config\ConfigInterface;
 use FastForward\Config\DirectoryConfig;
+use FastForward\Config\Exception\InvalidArgumentException;
 use FastForward\Config\Helper\ConfigHelper;
 use FastForward\Config\LamiasConfigAggregatorConfig;
 use FastForward\Config\LazyLoadConfigTrait;
@@ -57,6 +58,7 @@ use function FastForward\Config\configProvider;
 #[UsesClass(ConfigHelper::class)]
 #[UsesClass(CachedConfig::class)]
 #[UsesClass(DirectoryConfig::class)]
+#[UsesClass(InvalidArgumentException::class)]
 #[UsesClass(PhpFileConfig::class)]
 #[UsesClass(RecursiveDirectoryConfig::class)]
 #[UsesClass(LamiasConfigAggregatorConfig::class)]
@@ -217,6 +219,45 @@ final class FunctionsTest extends TestCase
         self::assertSame('bar', $result->get('foo'));
 
         unlink($filePath);
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testConfigWithUnreadablePhpFileThrowsInvalidArgumentException(): void
+    {
+        $filePath = sys_get_temp_dir() . '/unreadable_' . uniqid() . '.php';
+        touch($filePath);
+        chmod($filePath, 0000);
+
+        try {
+            $result = config($filePath);
+            self::assertInstanceOf(ConfigInterface::class, $result);
+
+            $this->expectException(InvalidArgumentException::class);
+            $result->get('foo');
+        } finally {
+            chmod($filePath, 0644);
+            unlink($filePath);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testConfigDoesNotLoadNonPhpFileAsPhpFileConfig(): void
+    {
+        $filePath = sys_get_temp_dir() . '/test_' . uniqid() . '.json';
+        file_put_contents($filePath, '{"foo": "bar"}');
+
+        try {
+            $this->expectException(\TypeError::class);
+            config($filePath);
+        } finally {
+            unlink($filePath);
+        }
     }
 }
 

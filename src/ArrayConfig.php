@@ -100,7 +100,7 @@ final class ArrayConfig implements ConfigInterface
      */
     public function set(array|ConfigInterface|string $key, mixed $value = null): void
     {
-        if (! empty($value)) {
+        if (null !== $value || \is_string($key)) {
             if (! \is_string($key)) {
                 throw InvalidArgumentException::forNonStringKeyWithValue();
             }

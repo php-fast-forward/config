@@ -124,7 +124,7 @@ final class PhpFileConfigTest extends TestCase
      * @return void
      */
     #[Test]
-    public function testInvokeWillPersistDefaultConfigWhenPersistentIsTrue(): void
+    public function testInvokeWillNotPersistDefaultConfigOnReadEvenWhenPersistentIsTrue(): void
     {
         $defaultData = [
             'app' => [
@@ -139,10 +139,80 @@ final class PhpFileConfigTest extends TestCase
         );
 
         self::assertSame($defaultData, $config->toArray());
+        self::assertFileDoesNotExist($this->tempFile);
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testSetWillPersistDefaultConfigAndMutationsWhenPersistentIsTrue(): void
+    {
+        $defaultData = [
+            'app' => [
+                'name' => 'PersistedApp',
+            ],
+        ];
+
+        $config = new PhpFileConfig(
+            file: $this->tempFile,
+            persistent: true,
+            defaultConfig: $defaultData,
+        );
+
+        $config->set('app.env', 'testing');
+
         self::assertFileExists($this->tempFile);
 
         $reloaded = new PhpFileConfig($this->tempFile);
-        self::assertSame($defaultData, $reloaded->toArray());
+        self::assertSame([
+            'app' => [
+                'name' => 'PersistedApp',
+                'env'  => 'testing',
+            ],
+        ], $reloaded->toArray());
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testSetWillCreateDirectoryIfItDoesNotExistWhenPersistentIsTrue(): void
+    {
+        $baseDir  = sys_get_temp_dir() . '/base_' . uniqid();
+        $subDir   = $baseDir . '/nested/sub/dir';
+        $filePath = $subDir . '/config.php';
+
+        try {
+            $config = new PhpFileConfig(
+                file: $filePath,
+                persistent: true,
+                defaultConfig: ['initial' => true],
+            );
+
+            self::assertDirectoryDoesNotExist($subDir);
+
+            $config->set('new_key', 'new_val');
+
+            self::assertDirectoryExists($subDir);
+            self::assertFileExists($filePath);
+
+            $reloaded = new PhpFileConfig($filePath);
+            self::assertSame([
+                'initial' => true,
+                'new_key' => 'new_val',
+            ], $reloaded->toArray());
+        } finally {
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+            if (is_dir($subDir)) {
+                rmdir($subDir);
+                rmdir($baseDir . '/nested/sub');
+                rmdir($baseDir . '/nested');
+                rmdir($baseDir);
+            }
+        }
     }
 
     /**
@@ -330,7 +400,7 @@ final class PhpFileConfigTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage(\sprintf('The file "%s" is not writable.', $unwritableDir));
 
-        $config->toArray();
+        $config->set('foo', 'baz');
     }
 
     /**
@@ -350,6 +420,26 @@ final class PhpFileConfigTest extends TestCase
             $config->set('foo', 'baz');
         } finally {
             chmod($this->tempFile, 0644);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testDumpWillThrowExceptionWhenValueCannotBeExported(): void
+    {
+        $config = new PhpFileConfig($this->tempFile, persistent: true, defaultConfig: []);
+
+        $resource = fopen('php://memory', 'r');
+        $this->expectException(InvalidArgumentException::class);
+
+        try {
+            $config->set('resource', $resource);
+        } finally {
+            if (\is_resource($resource)) {
+                fclose($resource);
+            }
         }
     }
 }

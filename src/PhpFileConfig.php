@@ -52,11 +52,11 @@ final class PhpFileConfig implements ConfigInterface
      *
      * If the file exists, it MUST return a valid array.
      * If the file does not exist but a default configuration is provided,
-     * the default configuration SHALL be used and optionally written to disk if persistent.
+     * the default configuration SHALL be used.
      *
      * @return ConfigInterface a ConfigInterface implementation containing the configuration data
      *
-     * @throws InvalidArgumentException if the file is unreadable, unwritable, or does not return an array
+     * @throws InvalidArgumentException if the file is unreadable or does not return an array
      */
     public function __invoke(): ConfigInterface
     {
@@ -65,10 +65,6 @@ final class PhpFileConfig implements ConfigInterface
                 $data = $this->defaultConfig instanceof ConfigInterface
                     ? $this->defaultConfig->toArray()
                     : $this->defaultConfig;
-
-                if ($this->persistent) {
-                    $this->dump($data);
-                }
 
                 return new ArrayConfig($data);
             }
@@ -141,28 +137,46 @@ final class PhpFileConfig implements ConfigInterface
      *
      * @return void
      *
-     * @throws InvalidArgumentException if the file or directory is not writable
+     * @throws InvalidArgumentException if the file or directory is not writable, or cannot be exported
      */
     private function dump(array $data): void
-
     {
         $dir = \dirname($this->file);
 
-        if (! is_dir($dir) || ! is_writable($dir)) {
+        if (! is_dir($dir)) {
+            if (! @mkdir($dir, 0777, true) && ! is_dir($dir)) {
+                throw InvalidArgumentException::forUnwritableFile($this->file);
+            }
+        } elseif (! is_writable($dir)) {
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        if (file_exists($this->file) && ! is_writable($this->file)) {
+        if (file_exists($this->file) && (! is_file($this->file) || ! is_writable($this->file))) {
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        $exported = class_exists(VarExporter::class)
-            ? VarExporter::export($data)
-            : var_export($data, true);
+        try {
+            $exported = VarExporter::export($data);
+        } catch (\Throwable $e) {
+            throw new InvalidArgumentException($e->getMessage(), (int) $e->getCode(), $e);
+        }
 
         $content = "<?php\n\ndeclare(strict_types=1);\n\nreturn {$exported};\n";
 
-        if (@file_put_contents($this->file, $content, \LOCK_EX) === false) {
+        $tmpFile = tempnam($dir, 'cfg_');
+        if (false === $tmpFile) {
+            throw InvalidArgumentException::forUnwritableFile($this->file);
+        }
+
+        if (false === @file_put_contents($tmpFile, $content, \LOCK_EX)) {
+            @unlink($tmpFile);
+            throw InvalidArgumentException::forUnwritableFile($this->file);
+        }
+
+        @chmod($tmpFile, 0666 & ~umask());
+
+        if (! @rename($tmpFile, $this->file)) {
+            @unlink($tmpFile);
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
     }

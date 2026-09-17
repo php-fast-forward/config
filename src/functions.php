@@ -41,7 +41,7 @@ function config(array|ConfigInterface|string ...$configs): ConfigInterface
             $configs[$index] = configDir($config, true);
         }
 
-        if (\is_string($config) && is_file($config) && is_readable($config)) {
+        if (\is_string($config) && str_ends_with($config, '.php') && is_file($config)) {
             $configs[$index] = new PhpFileConfig($config);
         }
 
