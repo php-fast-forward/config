@@ -1,7 +1,7 @@
 # FastForward Config
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/php-fast-forward/config/efbbb7e005b8e2ba7b0af9ca630352dd5a5956ea/docs/_static/mascot-banner.png" alt="Dash combining configuration sources into structured settings" width="840">
+  <img src="docs/_static/mascot-banner.png" alt="Dash combining configuration sources into structured settings" width="840">
 </p>
 
 **FastForward Config** is a flexible and modern PHP configuration library built for performance, extendability, and lazy-loading behavior. It supports dot-notation keys, recursive directory loading, Laminas-compliant configuration providers, and optional PSR-16 caching.
