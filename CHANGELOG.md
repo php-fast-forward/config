@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Allow the isolated CI status publisher to read workflow job outcomes without granting write permissions to test jobs.
+
 ## [1.5.0] - 2026-09-17
 
 ### Added
