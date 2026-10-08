@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Mirror verified Dependabot push test outcomes through a separate completion workflow so required statuses are available with the bot's restricted token.
+- Allow the isolated CI status publisher to read workflow job outcomes without granting write permissions to test jobs.
+
 ## [1.5.0] - 2026-09-17
 
 ### Added
