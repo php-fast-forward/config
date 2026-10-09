@@ -7,12 +7,76 @@ on:
   workflow_dispatch:
 
 permissions:
-  pull-requests: write
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
+
+concurrency:
+  group: reports-pages
+  cancel-in-progress: false
 
 jobs:
   reports:
-    uses: php-fast-forward/dev-tools/.github/workflows/reports.yml@main
-    secrets: inherit
+    name: Generate Reports
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Resolve PHP version
+        id: php
+        uses: php-fast-forward/dev-tools/.github/actions/php/resolve-version@main
+
+      - name: Setup PHP and dependencies
+        uses: php-fast-forward/dev-tools/.github/actions/php/setup-composer@main
+        with:
+          php-version: ${{ steps.php.outputs.php-version }}
+          extensions: pcov, pcntl
+          coverage: pcov
+          root-version: dev-main
+
+      - name: Generate documentation, coverage and metrics
+        env:
+          COMPOSER_ROOT_VERSION: dev-main
+        run: |
+          dev-tools reports --target=.dev-tools/reports --coverage=.dev-tools/reports/coverage --metrics=.dev-tools/reports/metrics
+          touch .dev-tools/reports/.nojekyll
+          rm -rf .dev-tools/reports/cache
+          test -f .dev-tools/reports/index.html
+          test -f .dev-tools/reports/coverage/index.html
+          test -f .dev-tools/reports/metrics/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: .dev-tools/reports
+
+  deploy:
+    name: Deploy Reports to Pages
+    needs: reports
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page-url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Pages artifact
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  verify:
+    name: Verify Reports Deployment
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: php-fast-forward/dev-tools/.github/actions/github-pages/verify-deployment@main
+        with:
+          base-url: ${{ needs.deploy.outputs.page-url }}
+          title: Reports health check failed
+          checks: |
+            /|Reports index
+            /coverage/|Coverage report
+            /metrics/|Metrics report
