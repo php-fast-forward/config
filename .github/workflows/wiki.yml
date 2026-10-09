@@ -49,7 +49,7 @@ jobs:
         env:
           COMPOSER_ROOT_VERSION: dev-main
         run: |
-          dev-tools wiki --target=.dev-tools/wiki-generated --no-cache
+          dev-tools wiki --target=.dev-tools/wiki-generated --cache-dir="${RUNNER_TEMP}/wiki-phpdoc-cache"
           python3 .github/scripts/prepare-wiki.py .dev-tools/wiki-generated \
             "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/wiki" \
             "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
