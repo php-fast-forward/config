@@ -7,11 +7,97 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
+
+concurrency:
+  group: config-wiki-publication
+  cancel-in-progress: false
 
 jobs:
   wiki:
-    uses: php-fast-forward/dev-tools/.github/workflows/wiki.yml@main
-    secrets: inherit
+    name: Generate and Publish Wiki
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Checkout dev-tools workflow helpers
+        uses: actions/checkout@v7
+        with:
+          repository: php-fast-forward/dev-tools
+          ref: main
+          path: .dev-tools-actions
+          persist-credentials: false
+
+      - name: Resolve PHP version
+        id: php
+        uses: ./.dev-tools-actions/.github/actions/php/resolve-version
+
+      - name: Setup PHP and dependencies
+        uses: ./.dev-tools-actions/.github/actions/php/setup-composer
+        with:
+          php-version: ${{ steps.php.outputs.php-version }}
+          root-version: dev-main
+
+      - name: Test generated Wiki link preparation
+        run: python3 -B -m unittest discover -s .github/scripts -p 'test_*.py'
+
+      - name: Generate and prepare Wiki pages
+        env:
+          COMPOSER_ROOT_VERSION: dev-main
+        run: |
+          dev-tools wiki --target=.dev-tools/wiki-generated --no-cache
+          python3 .github/scripts/prepare-wiki.py .dev-tools/wiki-generated \
+            "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/wiki" \
+            "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          test -f .dev-tools/wiki-generated/Home.md
+          test -f .dev-tools/wiki-generated/classes/FastForward/Config/AggregateConfig.md
+          test -f .dev-tools/wiki-generated/classes/FastForward/Config/PhpFileConfig.md
+
+      - name: Publish and verify Wiki commit
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api "repos/${GITHUB_REPOSITORY}" --jq .has_wiki)" = true
+          wiki_authorization="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          echo "::add-mask::${wiki_authorization}"
+          wiki_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.wiki.git"
+          git -c "http.${GITHUB_SERVER_URL}/.extraheader=AUTHORIZATION: basic ${wiki_authorization}" \
+            clone --depth=1 "${wiki_url}" .dev-tools/wiki-publication
+          wiki_branch="$(git -C .dev-tools/wiki-publication symbolic-ref --short HEAD)"
+          if find .dev-tools/wiki-publication -name AGENTS.md -print -quit | grep -q .; then
+            echo "::error::The existing Wiki contains agent instruction pages; inspect them before publishing."
+            exit 1
+          fi
+          rsync -a --exclude='.git/' --exclude='AGENTS.md' \
+            .dev-tools/wiki-generated/ .dev-tools/wiki-publication/
+          git -C .dev-tools/wiki-publication add --all
+          if ! git -C .dev-tools/wiki-publication diff --cached --quiet; then
+            git -C .dev-tools/wiki-publication config user.name 'github-actions[bot]'
+            git -C .dev-tools/wiki-publication config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git -C .dev-tools/wiki-publication commit -m "Update Wiki from ${GITHUB_SHA}"
+            git -C .dev-tools/wiki-publication \
+              -c "http.${GITHUB_SERVER_URL}/.extraheader=AUTHORIZATION: basic ${wiki_authorization}" \
+              push origin "HEAD:refs/heads/${wiki_branch}"
+          else
+            echo 'Wiki content is unchanged; no commit or push needed.'
+          fi
+          wiki_expected="$(git -C .dev-tools/wiki-publication rev-parse HEAD)"
+          wiki_actual="$(git -C .dev-tools/wiki-publication \
+            -c "http.${GITHUB_SERVER_URL}/.extraheader=AUTHORIZATION: basic ${wiki_authorization}" \
+            ls-remote origin "refs/heads/${wiki_branch}" | cut -f1)"
+          test "${wiki_expected}" = "${wiki_actual}"
+          git -C .dev-tools/wiki-publication diff --exit-code HEAD
+          printf 'Verified Wiki branch %s at %s\n' "${wiki_branch}" "${wiki_actual}"
+
+      - name: Verify rendered Wiki pages
+        if: github.ref == 'refs/heads/main'
+        run: |
+          for page in Home AggregateConfig PhpFileConfig config; do
+            curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 5 \
+              "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/wiki/${page}" --output /dev/null
+          done
