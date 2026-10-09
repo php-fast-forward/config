@@ -18,6 +18,10 @@ declare(strict_types=1);
 
 namespace FastForward\Config;
 
+use Dflydev\DotAccessData\Data;
+use Dflydev\DotAccessData\DataInterface;
+use FastForward\Config\Helper\ConfigHelper;
+
 /**
  * Class AggregateConfig.
  *
@@ -51,20 +55,21 @@ final class AggregateConfig implements ConfigInterface
     /**
      * Invokes the configuration aggregator.
      *
-     * This method SHALL initialize a new ArrayConfig instance and populate it
-     * with the values from each provided configuration source.
+     * This method SHALL merge normalized configuration sources and return an ArrayConfig. Sequential lists SHALL be
+     * concatenated in source order, retaining duplicates. Maps SHALL merge recursively,
+     * and later scalar values SHALL replace earlier values.
      * It MUST return a fully merged configuration in the form of a ConfigInterface implementation.
      *
      * @return ConfigInterface the resulting merged configuration object
      */
     public function __invoke(): ConfigInterface
     {
-        $arrayConfig = new ArrayConfig();
+        $data = new Data();
 
         foreach ($this->configs as $config) {
-            $arrayConfig->set($config->toArray());
+            $data->import(ConfigHelper::normalize($config->toArray()), DataInterface::MERGE);
         }
 
-        return $arrayConfig;
+        return new ArrayConfig($data->export());
     }
 }

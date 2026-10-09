@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Concatenate sequential lists when aggregating configuration sources, preserving order and duplicates, recursive map merging, later scalar precedence, dot notation, and lazy loading without changing explicit ArrayConfig::set() index-replacement semantics.
 - Mirror verified Dependabot push test outcomes through a separate completion workflow so required statuses are available with the bot's restricted token.
 - Allow the isolated CI status publisher to read workflow job outcomes without granting write permissions to test jobs.
 
