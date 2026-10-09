@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8"/>
+        <title>Test Documentation</title>
+        <style>
+            body {
+                text-rendering: optimizeLegibility;
+                font-family: Source SansSerif Pro, Arial, sans-serif;
+                font-variant-ligatures: common-ligatures;
+                font-kerning: normal;
+                margin-left: 2rem;
+                background-color: #fff;
+                color: #000;
+            }
+
+            body > ul > li {
+                font-size: larger;
+            }
+
+            h2 {
+                font-size: larger;
+                text-decoration-line: underline;
+                text-decoration-thickness: 2px;
+                margin: 0;
+                padding: 0.5rem 0;
+            }
+
+            ul {
+                list-style: none;
+                margin: 0 0 2rem;
+                padding: 0 0 0 1rem;
+                text-indent: -1rem;
+            }
+
+            .success:before {
+                color: #4e9a06;
+                content: '✓';
+                padding-right: 0.5rem;
+            }
+
+            .defect {
+                color: #a40000;
+            }
+
+            .defect:before {
+                color: #a40000;
+                content: '✗';
+                padding-right: 0.5rem;
+            }
+        </style>
+    </head>
+    <body>
+        <h2>Aggregate Config (FastForward\Config\Tests\AggregateConfig)</h2>
+        <ul>
+            <li class="success">Invoke will aggregate all configs into one</li>
+        </ul>
+        <h2>Array Access Config Trait</h2>
+        <ul>
+            <li class="success">Offset exists will call has method</li>
+            <li class="success">Offset get will call get method</li>
+            <li class="success">Offset set will call set method</li>
+            <li class="success">Offset unset will call remove method</li>
+        </ul>
+        <h2>Array Config (FastForward\Config\Tests\ArrayConfig)</h2>
+        <ul>
+            <li class="success">Get will return primitive or nested config</li>
+            <li class="success">Has returns expected results</li>
+            <li class="success">Set with array merges correctly</li>
+            <li class="success">Set with key value pairs</li>
+            <li class="success">Set with falsy values with data set &quot;boolean false&quot;</li>
+            <li class="success">Set with falsy values with data set &quot;integer zero&quot;</li>
+            <li class="success">Set with falsy values with data set &quot;string zero&quot;</li>
+            <li class="success">Set with falsy values with data set &quot;empty string&quot;</li>
+            <li class="success">Set with falsy values with data set &quot;null value&quot;</li>
+            <li class="success">Set throws exception for invalid key</li>
+            <li class="success">Set accepts another config interface</li>
+            <li class="success">Get iterator yields all keys</li>
+            <li class="success">Dot notation merges associative nested keys</li>
+            <li class="success">Remove key removes top level keys</li>
+            <li class="success">Remove key removes nested keys</li>
+            <li class="success">Remove key removes deep nested keys</li>
+            <li class="success">Explicit list assignment retains index replacement with data set &quot;key&quot;</li>
+            <li class="success">Explicit list assignment retains index replacement with data set &quot;array&quot;</li>
+            <li class="success">Explicit list assignment retains index replacement with data set &quot;object&quot;</li>
+        </ul>
+        <h2>Cached Config (FastForward\Config\Tests\CachedConfig)</h2>
+        <ul>
+            <li class="success">Invoke will return cached config instance when not cached</li>
+            <li class="success">Invoke will return cached config instance when already cached</li>
+            <li class="success">Set will update cache when persistent is true</li>
+            <li class="success">Set will not update cache when persistent is false</li>
+            <li class="success">Remove will update cache when persistent is true</li>
+            <li class="success">Remove will not update cache when persistent is false</li>
+        </ul>
+        <h2>Config Aggregation (FastForward\Config\Tests\ConfigAggregation)</h2>
+        <ul>
+            <li class="success">Aggregates lists across source kinds with data set &quot;arrays / two sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;arrays / three sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;objects / two sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;objects / three sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;files / two sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;files / three sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;file objects / two sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;file objects / three sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;directories / two sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;directories / three sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;directory objects / two sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;directory objects / three sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;providers / two sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;providers / three sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;mixed / two sources&quot;</li>
+            <li class="success">Aggregates lists across source kinds with data set &quot;mixed / three sources&quot;</li>
+            <li class="success">Matches config provider without eager loading</li>
+            <li class="success">Invokable class names stay lazy and keep duplicates</li>
+            <li class="success">Normalizes dotted and nested keys from config interfaces</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;empty then list&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;list then empty&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;two empty arrays&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;map then empty&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;empty then map&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;sparse numeric arrays&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;list then sparse&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;sparse then list&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;mixed arrays&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;map then list&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;list then map&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;scalar then list&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;list then scalar&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;scalar then map&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;map then scalar&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;scalar then empty&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;null then list&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;list then null&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;null then scalar&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;scalar then null&quot;</li>
+            <li class="success">Preserves existing boundary semantics with data set &quot;two nulls&quot;</li>
+        </ul>
+        <h2>Config Container (FastForward\Config\Tests\Container\ConfigContainer)</h2>
+        <ul>
+            <li class="success">Has returns true for known internal identifiers</li>
+            <li class="success">Has returns true if config contains key</li>
+            <li class="success">Has returns false for unknown key</li>
+            <li class="success">Get returns container for internal identifiers</li>
+            <li class="success">Get returns config value for key</li>
+            <li class="success">Get throws exception for unknown key</li>
+            <li class="success">Get with config container will return config container</li>
+        </ul>
+        <h2>Config Helper (FastForward\Config\Tests\Helper\ConfigHelper)</h2>
+        <ul>
+            <li class="success">Is assoc will return true for associative array</li>
+            <li class="success">Is assoc will return false for sequential array</li>
+            <li class="success">Is assoc will return false for non array</li>
+            <li class="success">Normalize will convert dot notation to nested array</li>
+            <li class="success">Normalize will handle mixed nested arrays</li>
+            <li class="success">Normalize will return indexed array unchanged</li>
+            <li class="success">Normalize will merge arrays when keys overlap</li>
+            <li class="success">Flatten will convert nested array to dot notation</li>
+            <li class="success">Flatten will handle empty array</li>
+        </ul>
+        <h2>Container Not Found Exception (FastForward\Config\Tests\Exception\ContainerNotFoundException)</h2>
+        <ul>
+            <li class="success">For key returns expected message</li>
+        </ul>
+        <h2>Directory Config (FastForward\Config\Tests\DirectoryConfig)</h2>
+        <ul>
+            <li class="success">Constructor will throw exception for unreadable directory</li>
+            <li class="success">Constructor will succeed for valid directory</li>
+        </ul>
+        <h2>Functions (FastForward\Config\Tests\Functions)</h2>
+        <ul>
+            <li class="success">Config accepts array and returns aggregate config</li>
+            <li class="success">Config accepts invokable class name</li>
+            <li class="success">Config cache wraps config with cache</li>
+            <li class="success">Config dir returns expected instance</li>
+            <li class="success">Config provider returns expected implementation</li>
+            <li class="success">Config will load directory when string is directory</li>
+            <li class="success">Config file returns php file config instance</li>
+            <li class="success">Config will load php file when string is file</li>
+            <li class="success">Config with unreadable php file throws invalid argument exception</li>
+            <li class="success">Config does not load non php file as php file config</li>
+        </ul>
+        <h2>Invalid Argument Exception (FastForward\Config\Tests\Exception\InvalidArgumentException)</h2>
+        <ul>
+            <li class="success">For non string key with value will return expected message</li>
+            <li class="success">For unreadable directory will return expected message</li>
+            <li class="success">For unreadable file will return expected message</li>
+            <li class="success">For unwritable file will return expected message</li>
+            <li class="success">For invalid config file will return expected message</li>
+        </ul>
+        <h2>Laminas Config Aggregator Config (FastForward\Config\Tests\LaminasConfigAggregatorConfig)</h2>
+        <ul>
+            <li class="success">Invoke aggregates providers</li>
+            <li class="success">Deprecated lamias config aggregator config extends laminas config aggregator config</li>
+        </ul>
+        <h2>Lazy Load Config Trait (FastForward\Config\Tests\LazyLoadConfigTrait)</h2>
+        <ul>
+            <li class="success">Get delegates to config</li>
+            <li class="success">Remove removes from config</li>
+            <li class="success">Has returns expected results</li>
+            <li class="success">Set merges values correctly</li>
+            <li class="success">To array and iterator are consistent</li>
+        </ul>
+        <h2>Php File Config (FastForward\Config\Tests\PhpFileConfig)</h2>
+        <ul>
+            <li class="success">Invoke will return array config from file</li>
+            <li class="success">Invoke will throw exception when file does not exist and no default</li>
+            <li class="success">Invoke will use default config when file does not exist</li>
+            <li class="success">Invoke will not persist default config on read even when persistent is true</li>
+            <li class="success">Set will persist default config and mutations when persistent is true</li>
+            <li class="success">Set will create directory if it does not exist when persistent is true</li>
+            <li class="success">Invoke will throw exception when file does not return array</li>
+            <li class="success">Set will not update file when persistent is false</li>
+            <li class="success">Set will update file when persistent is true</li>
+            <li class="success">Remove will not update file when persistent is false</li>
+            <li class="success">Remove will update file when persistent is true</li>
+            <li class="success">Array access with persistence</li>
+            <li class="success">Iteration returns flattened keys</li>
+            <li class="success">Invoke will throw exception when path is directory</li>
+            <li class="success">Dump will throw exception when directory is not writable</li>
+            <li class="success">Dump will throw exception when file is not writable</li>
+            <li class="success">Dump will throw exception when value cannot be exported</li>
+            <li class="success">Persistent mutations across multiple instances do not overwrite each other</li>
+            <li class="success">Persistent remove across multiple instances do not overwrite each other</li>
+            <li class="success">Persistent mutation preserves restrictive file permissions</li>
+            <li class="success">Persistent mutation preserves symlink target</li>
+        </ul>
+        <h2>Recursive Directory Config (FastForward\Config\Tests\RecursiveDirectoryConfig)</h2>
+        <ul>
+            <li class="success">Constructor will throw exception for unreadable root directory</li>
+            <li class="success">Constructor will aggregate nested php files</li>
+        </ul>
+    </body>
+</html>
