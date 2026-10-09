@@ -55,6 +55,25 @@ echo $config->get('app.env'); // "production"
 
 ---
 
+### Combine module lists
+
+```php
+$config = config(
+    ['console' => ['commands' => ['A', 'B']]],
+    ['console' => ['commands' => ['C', 'A']]],
+);
+
+$config->get('console.commands'); // ['A', 'B', 'C', 'A']
+```
+
+Source aggregation concatenates sequential lists in source order, retains duplicates,
+merges maps recursively, and lets later scalar values win. Arrays, config objects,
+PHP files, directories, and invokable provider class names use this behavior.
+Direct `set()` retains its existing index-replacement behavior. See
+[the merge and boundary semantics](docs/usage/use-cases.rst).
+
+---
+
 ### Cache configuration using PSR-16
 
 ```php

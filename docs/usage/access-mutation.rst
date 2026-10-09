@@ -50,6 +50,9 @@ You can set one key at a time, merge an array, or merge another config object.
    $config->set($otherConfig);
 
 Later writes override earlier values for the same key while preserving unrelated nested values.
+For arrays, ``set()`` replaces matching indexes and retains unmatched indexes; it does not
+concatenate lists. Remove the key before setting it when you need whole-list replacement.
+Source aggregation has separate :doc:`merge semantics <use-cases>`.
 
 Removing Values
 ---------------

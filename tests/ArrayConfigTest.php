@@ -290,4 +290,54 @@ final class ArrayConfigTest extends TestCase
         self::assertFalse($config->has($key3));
         self::assertSame($config2->toArray(), $config->toArray());
     }
+
+    /**
+     * @param string $form
+     */
+    #[Test]
+    #[DataProvider('listAssignmentForms')]
+    public function testExplicitListAssignmentRetainsIndexReplacement(string $form): void
+    {
+        $config = new ArrayConfig([
+            'console' => [
+                'commands' => ['A', 'B'],
+            ],
+        ]);
+
+        match ($form) {
+            'key' => $config->set('console.commands', ['C']),
+            'array' => $config->set([
+                'console' => [
+                    'commands' => ['C'],
+                ],
+            ]),
+            'object' => $config->set(new ArrayConfig([
+                'console' => [
+                    'commands' => ['C'],
+                ],
+            ])),
+        };
+
+        self::assertSame(['C', 'B'], $config->get('console.commands'));
+        $config->set('console.commands', []);
+        self::assertSame(['C', 'B'], $config->get('console.commands'));
+        $config->set('console.commands');
+        self::assertSame([
+            'console' => [
+                'commands' => null,
+            ],
+        ], $config->toArray());
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function listAssignmentForms(): array
+    {
+        return [
+            'key' => ['key'],
+            'array' => ['array'],
+            'object' => ['object'],
+        ];
+    }
 }
