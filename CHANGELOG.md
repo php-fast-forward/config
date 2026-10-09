@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Grant the Reports workflow caller the pull-request permissions required by reusable preview-comment and cleanup jobs so report generation and deployment can start.
+- Restore Reports generation and publish documentation, coverage, and metrics through native GitHub Pages artifact deployment, with site verification after deployment and job-scoped permissions.
 - Concatenate sequential lists when aggregating configuration sources, preserving order and duplicates, recursive map merging, later scalar precedence, dot notation, and lazy loading without changing explicit ArrayConfig::set() index-replacement semantics.
 - Mirror verified Dependabot push test outcomes through a separate completion workflow so required statuses are available with the bot's restricted token.
 - Allow the isolated CI status publisher to read workflow job outcomes without granting write permissions to test jobs.
