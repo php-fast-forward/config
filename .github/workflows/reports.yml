@@ -22,12 +22,20 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Checkout dev-tools workflow helpers
+        uses: actions/checkout@v7
+        with:
+          repository: php-fast-forward/dev-tools
+          ref: main
+          path: .dev-tools-actions
+          persist-credentials: false
+
       - name: Resolve PHP version
         id: php
-        uses: php-fast-forward/dev-tools/.github/actions/php/resolve-version@main
+        uses: ./.dev-tools-actions/.github/actions/php/resolve-version
 
       - name: Setup PHP and dependencies
-        uses: php-fast-forward/dev-tools/.github/actions/php/setup-composer@main
+        uses: ./.dev-tools-actions/.github/actions/php/setup-composer
         with:
           php-version: ${{ steps.php.outputs.php-version }}
           extensions: pcov, pcntl
@@ -53,6 +61,7 @@ jobs:
   deploy:
     name: Deploy Reports to Pages
     needs: reports
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -72,7 +81,17 @@ jobs:
     needs: deploy
     runs-on: ubuntu-latest
     steps:
-      - uses: php-fast-forward/dev-tools/.github/actions/github-pages/verify-deployment@main
+      - name: Checkout deployment verification helpers
+        uses: actions/checkout@v7
+        with:
+          repository: php-fast-forward/dev-tools
+          ref: main
+          path: .dev-tools-actions
+          sparse-checkout: |
+            .github/actions
+          persist-credentials: false
+
+      - uses: ./.dev-tools-actions/.github/actions/github-pages/verify-deployment
         with:
           base-url: ${{ needs.deploy.outputs.page-url }}
           title: Reports health check failed
