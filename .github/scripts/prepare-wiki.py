@@ -24,14 +24,14 @@ def prepare(root: Path, wiki_url: str, source_url: str) -> None:
     if (root / 'Home.md').resolve() not in targets:
         raise ValueError('Generated Wiki has no Home.md page')
 
-    link = re.compile(r'\]\(([^)\n]+)\)')
+    link = re.compile(r"""\]\((?P<path>[^\s()\n]+(?:\([^\n()]*\)[^\s()\n]*)*)(?P<title>\s+(?:"[^"\n]*"|'[^'\n]*'))?\)""")
     for page in pages:
         if page.name == 'AGENTS.md':
             page.unlink()
             continue
 
         def rewrite(match: re.Match) -> str:
-            destination = match.group(1)
+            destination = match.group('path')
             parsed = urlsplit(destination)
             if parsed.scheme or parsed.netloc or not parsed.path:
                 return match.group(0)
@@ -42,12 +42,13 @@ def prepare(root: Path, wiki_url: str, source_url: str) -> None:
             if name is None:
                 return match.group(0)
             anchor = '#' + parsed.fragment if parsed.fragment else ''
-            return '](' + wiki_url.rstrip('/') + '/' + quote(name, safe='') + anchor + ')'
+            title = match.group('title') or ''
+            return '](' + wiki_url.rstrip('/') + '/' + quote(name, safe='') + anchor + title + ')'
 
-        content = link.sub(rewrite, page.read_text())
+        content = link.sub(rewrite, page.read_text(encoding='utf-8'))
         if page.name == 'Home.md':
             content = content.rstrip() + '\n\nSource: [repository commit](' + source_url + ').\n'
-        page.write_text(content)
+        page.write_text(content, encoding='utf-8')
 
 
 if __name__ == '__main__':

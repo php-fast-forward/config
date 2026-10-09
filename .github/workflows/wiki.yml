@@ -20,15 +20,15 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Checkout dev-tools workflow helpers
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: php-fast-forward/dev-tools
-          ref: main
+          ref: f09a1d97c595ad2da58b0154fab1e697353d3234
           path: .dev-tools-actions
           persist-credentials: false
 
