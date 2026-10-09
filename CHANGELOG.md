@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-09
+
+### Added
+
+- Add a contextual repository mascot banner to the README.
+
 ### Fixed
 
+- Grant the Reports workflow caller the pull-request permissions required by reusable preview-comment and cleanup jobs so report generation and deployment can start.
 - Concatenate sequential lists when aggregating configuration sources, preserving order and duplicates, recursive map merging, later scalar precedence, dot notation, and lazy loading without changing explicit ArrayConfig::set() index-replacement semantics.
 - Mirror verified Dependabot push test outcomes through a separate completion workflow so required statuses are available with the bot's restricted token.
 - Allow the isolated CI status publisher to read workflow job outcomes without granting write permissions to test jobs.
@@ -107,7 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Helper functions config(), configCache(), configDir(), and configProvider()
 
 
-[unreleased]: https://github.com/php-fast-forward/config/compare/v1.5.0...HEAD
+[unreleased]: https://github.com/php-fast-forward/config/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/php-fast-forward/config/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/php-fast-forward/config/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/php-fast-forward/config/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/php-fast-forward/config/compare/v1.2.0...v1.3.0
