@@ -18,11 +18,8 @@ declare(strict_types=1);
 
 namespace FastForward\Config\Helper;
 
-use ReflectionClassConstant;
 use Traversable;
-use Dflydev\DotAccessData\Data;
-use Dflydev\DotAccessData\DataInterface;
-use Dflydev\DotAccessData\Util;
+use FastForward\Config\Exception\InvalidArgumentException;
 
 /**
  * Class ConfigHelper.
@@ -33,6 +30,8 @@ use Dflydev\DotAccessData\Util;
  */
 final class ConfigHelper
 {
+    private const array DELIMITERS = ['.', '/'];
+
     /**
      * This constructor is private to prevent instantiation of the class.
      *
@@ -55,7 +54,64 @@ final class ConfigHelper
      */
     public static function isAssoc(mixed $value): bool
     {
-        return \is_array($value) && Util::isAssoc($value);
+        if (! \is_array($value)) {
+            return false;
+        }
+
+        foreach (array_keys($value) as $key) {
+            if (\is_int($key)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Splits a non-empty configuration key, preserving empty path segments.
+     *
+     * @param string $key the dot- or slash-separated configuration key
+     *
+     * @return non-empty-list<string> the path segments
+     *
+     * @throws InvalidArgumentException if the path is empty
+     *
+     * @internal
+     */
+    public static function path(string $key): array
+    {
+        if ('' === $key) {
+            throw InvalidArgumentException::forEmptyPath();
+        }
+
+        return explode('.', str_replace(self::DELIMITERS, '.', $key));
+    }
+
+    /**
+     * Merges maps recursively and concatenates sequential lists, retaining duplicates.
+     * Later scalar values SHALL replace earlier values. Sparse and mixed arrays SHALL
+     * retain their keys and merge matching indexes recursively.
+     *
+     * @param array $first the existing configuration
+     * @param array $second the configuration to merge
+     *
+     * @return array the merged configuration
+     *
+     * @internal
+     */
+    public static function merge(array $first, array $second): array
+    {
+        if (array_is_list($first) && array_is_list($second)) {
+            return array_merge($first, $second);
+        }
+
+        foreach ($second as $key => $value) {
+            $first[$key] = isset($first[$key]) && \is_array($first[$key]) && \is_array($value)
+                ? self::merge($first[$key], $value)
+                : $value;
+        }
+
+        return $first;
     }
 
     /**
@@ -77,11 +133,7 @@ final class ConfigHelper
 
         $normalized = [];
 
-        $reflectionConst = new ReflectionClassConstant(Data::class, 'DELIMITERS');
-        $delimiters      = $reflectionConst->getValue();
-
-        $delimiterChars    = implode('', $delimiters);
-        $delimitersPattern = '/[' . preg_quote($delimiterChars, '/') . ']/';
+        $delimiterChars = implode('', self::DELIMITERS);
 
         foreach ($config as $key => $value) {
             if (self::isAssoc($value)) {
@@ -94,7 +146,7 @@ final class ConfigHelper
                 continue;
             }
 
-            $parts     = preg_split($delimitersPattern, $key);
+            $parts     = self::path($key);
             $current   = &$normalized;
             $lastIndex = \count($parts) - 1;
 
@@ -110,7 +162,7 @@ final class ConfigHelper
                 }
 
                 if (isset($current[$part]) && \is_array($current[$part]) && \is_array($value)) {
-                    $current[$part] = Util::mergeAssocArray($current[$part], $value, DataInterface::MERGE);
+                    $current[$part] = self::merge($current[$part], $value);
 
                     continue;
                 }

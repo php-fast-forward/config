@@ -18,17 +18,171 @@ declare(strict_types=1);
 
 namespace FastForward\Config\Tests\Helper;
 
+use stdClass;
+use FastForward\Config\Exception\InvalidArgumentException;
 use FastForward\Config\Helper\ConfigHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @internal
  */
 #[CoversClass(ConfigHelper::class)]
+#[UsesClass(InvalidArgumentException::class)]
 final class ConfigHelperTest extends TestCase
 {
+    /**
+     * @return void
+     */
+    public function testMergeRecursesThroughMapsAndConcatenatesOnlySequentialLists(): void
+    {
+        self::assertSame([
+            'commands' => ['A', 'B', 'B'],
+            'options' => [
+                'name' => 'last',
+                'keep' => true,
+            ],
+            'extra' => null,
+        ], ConfigHelper::merge([
+            'commands' => ['A', 'B'],
+            'options' => [
+                'name' => 'first',
+                'keep' => true,
+            ],
+        ], [
+            'commands' => ['B'],
+            'options' => [
+                'name' => 'last',
+            ],
+            'extra' => null,
+        ]));
+    }
+
+    /**
+     * @return void
+     */
+    public function testPathRejectsAnEmptyString(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        ConfigHelper::path('');
+    }
+
+    /**
+     * @param mixed $value
+     * @param bool $expected
+     */
+    #[DataProvider('arrayShapes')]
+    public function testAssociativeDetectionPreservesStringKeyOnlySemantics(mixed $value, bool $expected): void
+    {
+        self::assertSame($expected, ConfigHelper::isAssoc($value));
+    }
+
+    /**
+     * @return array<string, array{mixed, bool}>
+     */
+    public static function arrayShapes(): array
+    {
+        return [
+            'empty' => [[], true],
+            'map' => [[
+                'key' => 'value',
+            ], true],
+            'numeric-looking string' => [[
+                '01' => 'value',
+            ], true],
+            'list' => [['A', 'B'], false],
+            'sparse' => [[
+                2 => 'A',
+                5 => 'B',
+            ], false],
+            'mixed' => [[
+                0 => 'A',
+                'key' => 'B',
+            ], false],
+            'numeric string' => [[
+                '0' => 'A',
+            ], false],
+            'object' => [new stdClass(), false],
+            'null' => [null, false],
+        ];
+    }
+
+    /**
+     * @return void
+     */
+    public function testNormalizationPreservesListsSparseAndMixedArrays(): void
+    {
+        foreach ([
+            [[
+                'app.name' => 'inside a list',
+            ]],
+            [
+                2 => [
+                    'app.name' => 'inside a sparse array',
+                ],
+            ],
+            [
+                0 => 'A',
+                'app.name' => 'inside a mixed array',
+            ],
+        ] as $input) {
+            self::assertSame($input, ConfigHelper::normalize($input));
+            self::assertSame([
+                'items' => $input,
+            ], ConfigHelper::normalize([
+                'items' => $input,
+            ]));
+        }
+    }
+
+    /**
+     * @return void
+     */
+    public function testNormalizationSupportsSlashAndConcatenatesOverlappingLists(): void
+    {
+        self::assertSame([
+            'app' => [
+                'commands' => ['A', 'B', 'A'],
+                'name' => 'example',
+            ],
+        ], ConfigHelper::normalize([
+            'app' => [
+                'commands' => ['A'],
+            ],
+            'app/commands' => ['B', 'A'],
+            'app/name' => 'example',
+        ]));
+    }
+
+    /**
+     * @return void
+     */
+    public function testNormalizationRetainsInputOrderPrecedence(): void
+    {
+        self::assertSame([
+            'app' => [
+                'name' => 'last',
+            ],
+        ], ConfigHelper::normalize([
+            'app.debug' => true,
+            'app' => [
+                'name' => 'last',
+            ],
+        ]));
+        self::assertSame([
+            'app' => [
+                'name' => 'last',
+            ],
+        ], ConfigHelper::normalize([
+            'app' => 'first',
+            'app/name' => 'last',
+        ]));
+    }
+
     /**
      * @return void
      */

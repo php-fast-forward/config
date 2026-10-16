@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace dflydev/dot-access-data with native array storage, path traversal, normalization, and merging while preserving configuration lookup, assignment, and aggregation behavior. Empty lookup paths now raise FastForward\Config\Exception\InvalidArgumentException instead of the removed dependency's exception.
+
 ### Fixed
 
 - Restore Wiki API documentation generation and main-branch publication, preserve Wiki history and unrelated pages, normalize internal page links, and verify published content.

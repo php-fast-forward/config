@@ -3,6 +3,8 @@ Accessing And Mutating Values
 
 All ``ConfigInterface`` implementations support the same read, write, remove, iterate, and export operations. The examples below use dot notation because that is the most convenient style for nested configuration.
 
+Path traversal and storage use native PHP arrays. Both ``.`` and ``/`` separate path segments, so ``database.host`` and ``database/host`` address the same value. Leading, trailing, and repeated separators retain empty segments.
+
 Reading Values
 --------------
 
@@ -98,5 +100,8 @@ Good To Know
 ------------
 
 - ``get()`` with a missing key returns your default value instead of failing.
+- ``has()`` returns true for a stored ``null``, while ``get()`` returns the supplied default for that value.
+- Empty arrays and arrays containing only string keys are returned as ``ArrayConfig`` objects. Sequential, sparse numeric, and mixed-key arrays remain plain arrays.
+- An empty lookup path raises ``FastForward\Config\Exception\InvalidArgumentException``. Removing a missing path leaves the configuration unchanged, and removing a leaf retains its parent arrays.
 - ``get('some.branch')`` may return another config object, not always a plain array.
 - ``toArray()`` is the right choice when another library expects a regular PHP array.

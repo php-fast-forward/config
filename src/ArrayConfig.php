@@ -19,7 +19,6 @@ declare(strict_types=1);
 namespace FastForward\Config;
 
 use Traversable;
-use Dflydev\DotAccessData\Data;
 use FastForward\Config\Exception\InvalidArgumentException;
 use FastForward\Config\Helper\ConfigHelper;
 
@@ -27,7 +26,7 @@ use FastForward\Config\Helper\ConfigHelper;
  * Class ArrayConfig.
  *
  * Provides a configuration management system with dot notation access.
- * This class SHALL encapsulate configuration data using the DotAccessData library.
+ * This class SHALL encapsulate configuration data using native PHP arrays.
  * It MUST support nested keys and provide export, iteration, and dynamic update capabilities.
  */
 final class ArrayConfig implements ConfigInterface
@@ -35,9 +34,9 @@ final class ArrayConfig implements ConfigInterface
     use ArrayAccessConfigTrait;
 
     /**
-     * @var Data internal configuration storage instance
+     * @var array internal configuration storage
      */
-    private Data $data;
+    private array $data;
 
     /**
      * Constructs the ArrayConfig instance.
@@ -48,7 +47,7 @@ final class ArrayConfig implements ConfigInterface
      */
     public function __construct(array $config = [])
     {
-        $this->data = new Data(data: ConfigHelper::normalize($config));
+        $this->data = ConfigHelper::normalize($config);
     }
 
     /**
@@ -60,14 +59,24 @@ final class ArrayConfig implements ConfigInterface
      */
     public function has(string $key): bool
     {
-        return $this->data->has($key);
+        $value = $this->data;
+
+        foreach (ConfigHelper::path($key) as $part) {
+            if (! \is_array($value) || ! \array_key_exists($part, $value)) {
+                return false;
+            }
+
+            $value = $value[$part];
+        }
+
+        return true;
     }
 
     /**
      * Retrieves a value from the configuration.
      *
      * If the value is a nested associative array, a new instance of ArrayConfig SHALL be returned.
-     * If the key is not found and no default is provided, a MissingPathException SHOULD be thrown.
+     * If the key is missing or its value is null, the default SHALL be returned.
      *
      * @param string $key the configuration key to retrieve
      * @param mixed $default the default value to return if the key does not exist
@@ -76,7 +85,19 @@ final class ArrayConfig implements ConfigInterface
      */
     public function get(string $key, mixed $default = null): mixed
     {
-        $value = $this->data->get($key, $default);
+        $value = $this->data;
+
+        foreach (ConfigHelper::path($key) as $part) {
+            if (! \is_array($value) || ! \array_key_exists($part, $value)) {
+                $value = null;
+
+                break;
+            }
+
+            $value = $value[$part];
+        }
+
+        $value ??= $default;
 
         if (ConfigHelper::isAssoc($value)) {
             return new self($value);
@@ -114,7 +135,7 @@ final class ArrayConfig implements ConfigInterface
             $key = $key->toArray();
         }
 
-        $this->data->import(ConfigHelper::normalize($key));
+        $this->data = array_replace_recursive($this->data, ConfigHelper::normalize($key));
     }
 
     /**
@@ -128,9 +149,19 @@ final class ArrayConfig implements ConfigInterface
      */
     public function remove(string $key): void
     {
-        if ($this->has($key)) {
-            $this->data->remove($key);
+        $parts = ConfigHelper::path($key);
+        $last = array_pop($parts);
+        $current = &$this->data;
+
+        foreach ($parts as $part) {
+            if (! isset($current[$part]) || ! \is_array($current[$part])) {
+                return;
+            }
+
+            $current = &$current[$part];
         }
+
+        unset($current[$last]);
     }
 
     /**
@@ -144,7 +175,7 @@ final class ArrayConfig implements ConfigInterface
      */
     public function getIterator(): Traversable
     {
-        return ConfigHelper::flatten($this->toArray());
+        return ConfigHelper::flatten($this->data);
     }
 
     /**
@@ -156,6 +187,6 @@ final class ArrayConfig implements ConfigInterface
      */
     public function toArray(): array
     {
-        return $this->data->export();
+        return $this->data;
     }
 }

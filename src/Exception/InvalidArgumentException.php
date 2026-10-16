@@ -28,6 +28,16 @@ namespace FastForward\Config\Exception;
 final class InvalidArgumentException extends \InvalidArgumentException
 {
     /**
+     * Thrown when a configuration lookup path is empty.
+     *
+     * @return self the exception indicating the path cannot be empty
+     */
+    public static function forEmptyPath(): self
+    {
+        return new self('Path cannot be an empty string');
+    }
+
+    /**
      * Thrown when the key is not a string but a value is provided.
      *
      * @return self the exception indicating the key must be a string
@@ -85,4 +95,3 @@ final class InvalidArgumentException extends \InvalidArgumentException
         return new self(\sprintf('The configuration file "%s" must return an array.', $file));
     }
 }
-

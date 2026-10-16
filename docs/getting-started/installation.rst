@@ -26,10 +26,12 @@ Install The Package
 What Gets Installed
 -------------------
 
-- ``dflydev/dot-access-data`` powers dot-notation reads and writes.
+- ``brick/varexporter`` writes reloadable PHP configuration when ``PhpFileConfig`` persistence is enabled, including supported objects and closures.
 - ``laminas/laminas-config-aggregator`` powers provider aggregation and optional cache files.
 - ``psr/container`` enables PSR-11 integration through ``ConfigContainer``.
 - ``psr/simple-cache`` enables ``configCache()`` and ``CachedConfig``.
+
+Dot-notation reads, writes, and configuration merging use native PHP arrays and require no additional dependency.
 
 .. note::
 
