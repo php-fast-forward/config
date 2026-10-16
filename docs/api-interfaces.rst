@@ -75,6 +75,11 @@ These classes load PHP files from disk:
 - Both validate that the directory exists and is readable.
 - Both support an optional cache file path through Laminas ConfigAggregator.
 
+Generating that file also requires a truthy ``config_cache_enabled`` entry in a
+loaded PHP configuration array and an existing, writable parent directory. Keep
+the cache outside the scanned source directory. An existing cache file is reused
+before loading source files. See :doc:`advanced/caching`.
+
 PhpFileConfig
 -------------
 
@@ -91,6 +96,12 @@ LaminasConfigAggregatorConfig
 
 This class is the direct bridge around ``Laminas\\ConfigAggregator\\ConfigAggregator``. Use it when you want provider-based config aggregation without going through the helper functions.
 
+``cachedConfigFile`` selects a cache file. If it already exists, it is loaded
+before providers execute. Generating a missing cache file also requires a truthy
+``ConfigAggregator::ENABLE_CACHE`` (``config_cache_enabled``) value in merged
+provider output and an existing, writable parent directory. Passing ``null``
+bypasses file caching; a false enabling flag alone does not bypass an existing file.
+
 .. note::
    The deprecated spelling ``LamiasConfigAggregatorConfig`` has been removed. Replace imports, type declarations, and instantiations with ``LaminasConfigAggregatorConfig``; there is no autoload alias fallback.
 
@@ -104,7 +115,9 @@ Important constructor options:
 - ``cache``: the PSR-16 cache backend.
 - ``defaultConfig``: the wrapped config source.
 - ``persistent``: whether ``set()`` and ``remove()`` should write back to the cache backend.
-- ``cacheKey``: optional custom cache key.
+- ``cacheKey``: optional application-owned key for cross-instance reuse with the backend's default lifetime. Without one, each wrapper uses its own portable PSR-16 key and every write expires after 300 seconds.
+
+Cache misses and non-array entries fall back to the source without requiring a successful cache write or readback. Cache hits leave the source unresolved. Persistent mutations raise ``RuntimeException`` when the backend returns ``false`` from ``set()``; the local mutation is retained. See :doc:`advanced/caching` for migration and invalidation details.
 
 ConfigContainer
 ---------------

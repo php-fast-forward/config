@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace FastForward\Config\Tests;
 
+use TypeError;
 use FastForward\Config\AggregateConfig;
 use FastForward\Config\ArrayConfig;
 use FastForward\Config\CachedConfig;
@@ -108,9 +109,9 @@ final class FunctionsTest extends TestCase
             uniqid() => uniqid(),
         ];
 
-        $cache->has(Argument::type('string'))->willReturn(false);
-        $cache->set(Argument::type('string'), $data)->shouldBeCalledOnce();
-        $cache->get(Argument::type('string'))->willReturn($data);
+        $cache->has(Argument::type('string'))->shouldNotBeCalled();
+        $cache->set(Argument::type('string'), $data, 300)->willReturn(true)->shouldBeCalledOnce();
+        $cache->get(Argument::type('string'))->willReturn(null);
 
         $config = configCache($cache->reveal(), $data);
 
@@ -229,7 +230,7 @@ final class FunctionsTest extends TestCase
     {
         $filePath = sys_get_temp_dir() . '/unreadable_' . uniqid() . '.php';
         touch($filePath);
-        chmod($filePath, 0000);
+        chmod($filePath, 0o000);
 
         try {
             $result = config($filePath);
@@ -238,7 +239,7 @@ final class FunctionsTest extends TestCase
             $this->expectException(InvalidArgumentException::class);
             $result->get('foo');
         } finally {
-            chmod($filePath, 0644);
+            chmod($filePath, 0o644);
             unlink($filePath);
         }
     }
@@ -253,11 +254,10 @@ final class FunctionsTest extends TestCase
         file_put_contents($filePath, '{"foo": "bar"}');
 
         try {
-            $this->expectException(\TypeError::class);
+            $this->expectException(TypeError::class);
             config($filePath);
         } finally {
             unlink($filePath);
         }
     }
 }
-

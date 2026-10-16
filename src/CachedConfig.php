@@ -20,17 +20,22 @@ namespace FastForward\Config;
 
 use Psr\SimpleCache\CacheInterface;
 use Psr\SimpleCache\InvalidArgumentException;
+use RuntimeException;
 
 /**
  * Class CachedConfig.
  *
  * Provides a cached implementation of a configuration source.
- * This class MUST cache the configuration output of the decorated ConfigInterface instance.
+ * This class SHALL attempt to cache the configuration output of the decorated ConfigInterface instance.
  * It SHALL lazily initialize and retrieve cached configuration data upon invocation.
  */
 final class CachedConfig implements ConfigInterface
 {
     use LazyLoadConfigTrait;
+
+    private readonly string $cacheKey;
+
+    private readonly ?int $cacheTtl;
 
     /**
      * Constructs a CachedConfig wrapper.
@@ -41,21 +46,23 @@ final class CachedConfig implements ConfigInterface
      * @param CacheInterface $cache the cache implementation used for storing configuration data
      * @param ConfigInterface $defaultConfig the configuration source to be cached
      * @param bool $persistent whether the cache should be persistent or not
-     * @param string|null $cacheKey the cache key to use for storing the configuration data
+     * @param string|null $cacheKey a shared cache key, or null for an isolated key whose entries expire after 300 seconds
      */
     public function __construct(
         private readonly CacheInterface $cache,
         private readonly ConfigInterface $defaultConfig,
         private readonly bool $persistent = false,
-        private ?string $cacheKey = null,
+        ?string $cacheKey = null,
     ) {
-        $this->cacheKey ??= $this->defaultConfig::class;
+        $this->cacheKey = $cacheKey ?? 'ff_config_' . bin2hex(random_bytes(16));
+        $this->cacheTtl = null === $cacheKey ? 300 : null;
     }
 
     /**
      * Invokes the configuration and returns the cached configuration data.
      *
-     * If the configuration has not yet been cached, it MUST be stored in the cache upon first invocation.
+     * A usable cache entry MUST be returned without resolving the source. A miss or unusable entry
+     * SHALL resolve the source and attempt to cache it. A failed initial write MUST NOT discard source data.
      * This method MUST return a ConfigInterface implementation containing the cached configuration data.
      *
      * @return ConfigInterface a ConfigInterface implementation containing the cached configuration data
@@ -64,11 +71,13 @@ final class CachedConfig implements ConfigInterface
      */
     public function __invoke(): ConfigInterface
     {
-        if (! $this->cache->has($this->cacheKey)) {
-            $this->cache->set($this->cacheKey, $this->defaultConfig->toArray());
+        $data = $this->cache->get($this->cacheKey);
+        if (! \is_array($data)) {
+            $data = $this->defaultConfig->toArray();
+            $this->cache->set($this->cacheKey, $data, $this->cacheTtl);
         }
 
-        return new ArrayConfig($this->cache->get($this->cacheKey));
+        return new ArrayConfig($data);
     }
 
     /**
@@ -82,33 +91,49 @@ final class CachedConfig implements ConfigInterface
      * @return void
      *
      * @throws InvalidArgumentException if the key is invalid
+     * @throws RuntimeException if a persistent write fails; the local change is retained
      */
     public function set(array|ConfigInterface|string $key, mixed $value = null): void
     {
         $config = $this->getConfig();
         $config->set($key, $value);
 
-        if ($this->persistent) {
-            $this->cache->set($this->cacheKey, $config->toArray());
-        }
+        $this->persistConfig($config);
     }
 
     /**
-     * Retrieves a configuration value by key.
+     * Removes a configuration value by key.
      *
-     * This method MUST return the cached value if it exists, or the default value if not found.
+     * This method MUST update the backend when persistent mode is enabled.
      *
-     * @param string $key the configuration key to retrieve
+     * @param mixed $key the configuration key to remove
      *
-     * @return mixed the configuration value or the default value
+     * @return void
+     *
+     * @throws InvalidArgumentException if the cache key is invalid
+     * @throws RuntimeException if a persistent write fails; the local change is retained
      */
     public function remove(mixed $key): void
     {
         $config = $this->getConfig();
         $config->remove($key);
 
-        if ($this->persistent) {
-            $this->cache->set($this->cacheKey, $config->toArray());
+        $this->persistConfig($config);
+    }
+
+    /**
+     * Persists a local mutation when write-through mode is enabled.
+     *
+     * @param ConfigInterface $config the locally updated configuration
+     *
+     * @return void
+     *
+     * @throws RuntimeException if the backend refuses the write
+     */
+    private function persistConfig(ConfigInterface $config): void
+    {
+        if ($this->persistent && ! $this->cache->set($this->cacheKey, $config->toArray(), $this->cacheTtl)) {
+            throw new RuntimeException('Unable to persist configuration to the cache.');
         }
     }
 }
