@@ -1,0 +1,15 @@
+{
+    "name": "fast-forward/config-file-persistence-consumer",
+    "description": "Runtime-only persistent file configuration smoke test",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "fast-forward/config": "@dev"
+    },
+    "config": {
+        "allow-plugins": false,
+        "platform": {
+            "php": "8.3.0"
+        }
+    }
+}

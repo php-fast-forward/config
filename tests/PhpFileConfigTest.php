@@ -760,6 +760,51 @@ final class PhpFileConfigTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{string}>
+     */
+    public static function externallyRetargetedDirectories(): iterable
+    {
+        yield 'direct parent' => [''];
+        yield 'ancestor directory' => ['/nested'];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('externallyRetargetedDirectories')]
+    public function testPersistentMutationsFollowDirectorySymlinksRetargetedByAnotherProcess(string $suffix): void
+    {
+        if (! \function_exists('proc_open')) {
+            self::markTestSkipped('Subprocess support is required to retain the parent realpath cache.');
+        }
+
+        mkdir($this->tempDirectory . '/first' . $suffix, 0o777, true);
+        mkdir($this->tempDirectory . '/second' . $suffix, 0o777, true);
+        $first = $this->tempDirectory . '/first' . $suffix . '/settings.php';
+        $second = $this->tempDirectory . '/second' . $suffix . '/settings.php';
+        $link = $this->tempDirectory . '/current';
+        file_put_contents($first, '<?php return ["first" => true];');
+        file_put_contents($second, '<?php return ["second" => true];');
+        $this->createSymlink($this->tempDirectory . '/first', $link);
+
+        $config = new PhpFileConfig($link . $suffix . '/settings.php', persistent: true);
+        self::assertTrue($config->get('first'));
+        $this->runPhpSubprocess([__DIR__ . '/Stub/retarget-symlink.php', $link, $this->tempDirectory . '/second']);
+        $config->set('saved', true);
+        $config->remove('second');
+
+        self::assertSame([
+            'first' => true,
+        ], require $first);
+        self::assertSame([
+            'saved' => true,
+        ], require $second);
+        self::assertFileDoesNotExist(\dirname($first) . '/.settings.php.lock');
+        self::assertFileExists(\dirname($second) . '/.settings.php.lock');
+    }
+
+    /**
      * @return void
      */
     #[Test]
@@ -989,6 +1034,10 @@ final class PhpFileConfigTest extends TestCase
      */
     public static function disabledMetadataFunctions(): iterable
     {
+        yield 'cache refresh disabled during set' => ['clearstatcache', 'set'];
+        yield 'cache refresh disabled during remove' => ['clearstatcache', 'remove'];
+        yield 'stat disabled during set' => ['stat', 'set'];
+        yield 'stat disabled during remove' => ['stat', 'remove'];
         yield 'filegroup disabled during set' => ['filegroup', 'set'];
         yield 'filegroup disabled during remove' => ['filegroup', 'remove'];
         yield 'chgrp disabled during set' => ['chgrp', 'set'];
@@ -1054,7 +1103,7 @@ final class PhpFileConfigTest extends TestCase
      */
     public static function unusedMetadataFunctions(): iterable
     {
-        yield 'new file without filegroup and chgrp' => ['filegroup,chgrp', false];
+        yield 'new file without metadata functions' => ['stat,filegroup,chgrp', false];
         yield 'existing group already matches without chgrp' => ['chgrp', true];
     }
 
@@ -1138,9 +1187,7 @@ final class PhpFileConfigTest extends TestCase
     private function runWithDisabledMetadataFunctions(string $file, string $operation, string $functions): array
     {
         $autoload = \dirname((new ReflectionClass(ClassLoader::class))->getFileName(), 2) . '/autoload.php';
-        $process = proc_open([
-            \PHP_BINARY,
-            '-n',
+        $output = $this->runPhpSubprocess([
             '-d',
             'disable_functions=' . $functions,
             __DIR__ . '/Stub/disabled-metadata-functions.php',
@@ -1148,7 +1195,19 @@ final class PhpFileConfigTest extends TestCase
             $file,
             $operation,
             explode(',', $functions)[0],
-        ], [
+        ]);
+
+        return json_decode($output, true, 512, \JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * @param list<string> $arguments
+     *
+     * @return string
+     */
+    private function runPhpSubprocess(array $arguments): string
+    {
+        $process = proc_open([\PHP_BINARY, '-n', ...$arguments], [
             0 => ['pipe', 'r'],
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w'],
@@ -1161,7 +1220,7 @@ final class PhpFileConfigTest extends TestCase
         fclose($pipes[2]);
         self::assertSame(0, proc_close($process), $errors);
 
-        return json_decode($output, true, 512, \JSON_THROW_ON_ERROR);
+        return $output;
     }
 
     /**
@@ -1230,7 +1289,11 @@ final class PhpFileConfigTest extends TestCase
     private function removeDirectory(string $directory): void
     {
         foreach (new FilesystemIterator($directory) as $file) {
-            if ($file->isDir() && ! $file->isLink()) {
+            if ('\\' === \DIRECTORY_SEPARATOR && $file->isLink()) {
+                if (! @rmdir($file->getPathname())) {
+                    unlink($file->getPathname());
+                }
+            } elseif ($file->isDir() && ! $file->isLink()) {
                 $this->removeDirectory($file->getPathname());
             } else {
                 unlink($file->getPathname());

@@ -1,0 +1,35 @@
+name: File Persistence Runtime
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: File persistence (Windows, PHP 8.3)
+    runs-on: windows-latest
+    env:
+      COMPOSER_MIRROR_PATH_REPOS: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+      - name: Install isolated runtime consumer and verify persistence
+        shell: pwsh
+        run: |
+          $consumer = Join-Path $env:RUNNER_TEMP 'file-persistence-consumer'
+          Copy-Item .github/fixtures/file-persistence-consumer $consumer -Recurse
+          composer --working-dir="$consumer" config repositories.checkout path "$env:GITHUB_WORKSPACE"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          composer --working-dir="$consumer" install --no-dev --no-plugins --no-scripts --no-interaction --no-progress --prefer-dist
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          php "$consumer/smoke.php"
+          exit $LASTEXITCODE

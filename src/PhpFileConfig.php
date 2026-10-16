@@ -232,9 +232,16 @@ final class PhpFileConfig implements ConfigInterface
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        $existingMetadata = file_exists($targetFile) ? @stat($targetFile) : null;
-        if (false === $existingMetadata) {
-            throw InvalidArgumentException::forUnwritableFile($this->file);
+        $existingMetadata = null;
+        if (file_exists($targetFile)) {
+            if (! \function_exists('stat')) {
+                throw InvalidArgumentException::forUnwritableFile($this->file);
+            }
+
+            $existingMetadata = @stat($targetFile);
+            if (false === $existingMetadata) {
+                throw InvalidArgumentException::forUnwritableFile($this->file);
+            }
         }
 
         try {
@@ -292,6 +299,11 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function resolveTargetFile(): string
     {
+        if (! \function_exists('clearstatcache')) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
+        }
+
+        clearstatcache(true);
         $file = $this->absoluteFile ??= $this->absolutePath($this->file);
         $visited = [];
 
