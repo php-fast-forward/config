@@ -62,17 +62,38 @@ Provider order matters. Later providers override earlier values for the same key
 Using A Cache File
 ------------------
 
-If you want provider aggregation to write a cache file, pass ``cachedConfigFile``:
+To generate a PHP cache file, pass ``cachedConfigFile`` and include the explicit
+Laminas enabling flag in provider output. The parent directory must exist and be
+writable by the PHP process. With Composer's autoloader loaded, this example is
+self-contained:
 
 .. code-block:: php
 
+   use Laminas\ConfigAggregator\ConfigAggregator;
+   use function FastForward\Config\configProvider;
+
+   $cacheDirectory = __DIR__ . '/var/cache';
+   if (!is_dir($cacheDirectory)) {
+       mkdir($cacheDirectory, 0775, true);
+   }
+
    $config = configProvider(
        [
-           new CoreConfigProvider(),
-           new BlogConfigProvider(),
+           static fn(): array => [
+               ConfigAggregator::ENABLE_CACHE => true,
+               'blog' => ['posts_per_page' => 10],
+           ],
        ],
-       cachedConfigFile: __DIR__ . '/../var/cache/providers.php',
+       cachedConfigFile: $cacheDirectory . '/providers.php',
    );
+
+   $data = $config->toArray();
+
+The flag is ``config_cache_enabled`` and is evaluated after provider merging, so
+a later provider can disable generation with ``false``. An existing cache file is
+read before providers run; changing a provider's flag does not bypass that file.
+Pass ``cachedConfigFile: null`` to bypass file caching, or remove the file before
+rebuilding it. See :doc:`caching` for directory examples and PSR-16 caching.
 
 Good To Know
 ------------
