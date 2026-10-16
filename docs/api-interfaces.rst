@@ -75,6 +75,11 @@ These classes load PHP files from disk:
 - Both validate that the directory exists and is readable.
 - Both support an optional cache file path through Laminas ConfigAggregator.
 
+Generating that file also requires a truthy ``config_cache_enabled`` entry in a
+loaded PHP configuration array and an existing, writable parent directory. Keep
+the cache outside the scanned source directory. An existing cache file is reused
+before loading source files. See :doc:`advanced/caching`.
+
 PhpFileConfig
 -------------
 
@@ -90,6 +95,12 @@ LaminasConfigAggregatorConfig
 -----------------------------
 
 This class is the direct bridge around ``Laminas\\ConfigAggregator\\ConfigAggregator``. Use it when you want provider-based config aggregation without going through the helper functions.
+
+``cachedConfigFile`` selects a cache file. If it already exists, it is loaded
+before providers execute. Generating a missing cache file also requires a truthy
+``ConfigAggregator::ENABLE_CACHE`` (``config_cache_enabled``) value in merged
+provider output and an existing, writable parent directory. Passing ``null``
+bypasses file caching; a false enabling flag alone does not bypass an existing file.
 
 .. note::
    The deprecated spelling ``LamiasConfigAggregatorConfig`` has been removed. Replace imports, type declarations, and instantiations with ``LaminasConfigAggregatorConfig``; there is no autoload alias fallback.
