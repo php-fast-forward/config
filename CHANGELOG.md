@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-16
+
 ### Changed
 
 - Replace dflydev/dot-access-data with native array storage, path traversal, normalization, and merging while preserving configuration lookup, assignment, and aggregation behavior. Empty lookup paths now raise FastForward\Config\Exception\InvalidArgumentException instead of the removed dependency's exception.
@@ -122,7 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Helper functions config(), configCache(), configDir(), and configProvider()
 
 
-[unreleased]: https://github.com/php-fast-forward/config/compare/v1.5.1...HEAD
+[unreleased]: https://github.com/php-fast-forward/config/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/php-fast-forward/config/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/php-fast-forward/config/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/php-fast-forward/config/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/php-fast-forward/config/compare/v1.3.0...v1.4.0
