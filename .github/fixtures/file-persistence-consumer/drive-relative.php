@@ -14,10 +14,26 @@ if (! is_string($directory)) {
 
 $drive = substr($directory, 0, 2);
 file_put_contents($directory . '/native-plain.php', '<?php return ["plain" => true];');
+$prefix = null;
+$forms = [];
+foreach ([
+    'bare' => '',
+    'dot slash' => './',
+    'dot backslash' => '.\\',
+    'parent' => '..\\' . basename($directory) . '\\',
+] as $name => $candidate) {
+    $supported = false !== realpath($drive . $candidate . 'native-plain.php');
+    $forms[$name] = $supported;
+    if ($supported && null === $prefix) {
+        $prefix = $candidate;
+    }
+}
+
 $result = [
     'php' => \PHP_VERSION,
     'drive' => $drive,
-    'native_input_supported' => false !== realpath($drive . 'native-plain.php'),
+    'native_input_supported' => null !== $prefix,
+    'native_forms' => $forms,
     'native_drive_directory_supported' => false !== realpath($drive . '.'),
     'retarget_checks' => [],
 ];
@@ -55,7 +71,7 @@ if (! $result['native_input_supported']) {
         }
 
         try {
-            $input = $drive . basename($link) . ('ancestor' === $kind ? '/settings.php' : '');
+            $input = $drive . $prefix . basename($link) . ('ancestor' === $kind ? '/settings.php' : '');
             if (false === realpath($input)) {
                 $result['retarget_checks'][$kind] = [
                     'native_input_supported' => false,
