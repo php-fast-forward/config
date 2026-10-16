@@ -253,6 +253,77 @@ final class DirectoryDiscoveryTest extends TestCase
      */
     #[Test]
     #[DataProvider('entrypoints')]
+    public function testRelativeDirectoryDoesNotLoadAnIncludePathNamesake(string $entrypoint): void
+    {
+        $this->writeConfig('app/config/app.php', [
+            'source' => 'selected',
+        ]);
+        $this->writeConfig('shadow/config/app.php', [
+            'source' => 'shadow',
+            'outside' => true,
+        ]);
+        $workingDirectory = getcwd();
+        $includePath = get_include_path();
+        self::assertIsString($workingDirectory);
+
+        try {
+            chdir($this->directory . '/app');
+            set_include_path($this->directory . '/shadow');
+
+            self::assertSame([
+                'source' => 'selected',
+            ], $this->createConfig($entrypoint, 'config')->toArray());
+        } finally {
+            chdir($workingDirectory);
+            set_include_path($includePath);
+        }
+    }
+
+    /**
+     * @param string $entrypoint
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('entrypoints')]
+    public function testWorkingDirectoryChangesDoNotRedirectLaterIncludes(string $entrypoint): void
+    {
+        $this->writeConfig('app/config/a.php', []);
+        $this->writeConfig('app/config/b.php', [
+            'items' => ['second'],
+        ]);
+        $this->writeConfig('shadow/config/b.php', [
+            'items' => ['outside'],
+        ]);
+        file_put_contents(
+            $this->directory . '/app/config/a.php',
+            '<?php chdir(' . var_export($this->directory . '/shadow', true) . '); return ["items" => ["first"]];',
+        );
+        $workingDirectory = getcwd();
+        $includePath = get_include_path();
+        self::assertIsString($workingDirectory);
+
+        try {
+            chdir($this->directory . '/app');
+            set_include_path('.');
+
+            self::assertSame([
+                'items' => ['first', 'second'],
+            ], $this->createConfig($entrypoint, 'config')
+                ->toArray());
+        } finally {
+            chdir($workingDirectory);
+            set_include_path($includePath);
+        }
+    }
+
+    /**
+     * @param string $entrypoint
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('entrypoints')]
     public function testSymlinkedDirectoriesAreNotTraversedAndFilesAreIncludedOnce(string $entrypoint): void
     {
         if (! \function_exists('symlink')) {

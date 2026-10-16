@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Load PHP configuration at every recursive directory depth in deterministic depth-and-path order, preserve filename-pattern overrides, and include resolved files once without traversing child directory symlinks.
 - Keep accessible configuration available when a child directory is unreadable or disappears during recursive discovery, while preserving root read failures and unrelated errors.
 - Treat directory path metacharacters literally during top-level and recursive discovery, preventing similarly named sibling directories from contributing configuration.
+- Include discovered configuration through resolved absolute paths so relative roots cannot load outside namesakes through include_path or changes to the working directory.
 
 ## [1.6.0] - 2026-10-16
 

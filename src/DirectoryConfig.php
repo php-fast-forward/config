@@ -148,7 +148,7 @@ class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInt
                 }
 
                 $seenFiles[$realFile] = true;
-                $files[] = $file;
+                $files[] = $realFile;
             }
 
             $directories = $nextDirectories;
