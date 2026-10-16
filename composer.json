@@ -32,7 +32,8 @@
         "psr/simple-cache": "^3.0"
     },
     "require-dev": {
-        "fast-forward/dev-tools": "dev-main"
+        "fast-forward/dev-tools": "dev-main",
+        "symfony/cache": "^7.4"
     },
     "minimum-stability": "stable",
     "autoload": {

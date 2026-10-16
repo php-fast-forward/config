@@ -18,181 +18,505 @@ declare(strict_types=1);
 
 namespace FastForward\Config\Tests;
 
+use Closure;
+use FastForward\Config\AggregateConfig;
 use FastForward\Config\ArrayConfig;
 use FastForward\Config\CachedConfig;
 use FastForward\Config\ConfigInterface;
 use FastForward\Config\Helper\ConfigHelper;
+use FastForward\Config\LazyLoadConfigTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
+use PHPUnit\Framework\Attributes\UsesFunction;
+use PHPUnit\Framework\Attributes\UsesTrait;
 use PHPUnit\Framework\TestCase;
-use Prophecy\PhpUnit\ProphecyTrait;
-use Prophecy\Prophecy\ObjectProphecy;
 use Psr\SimpleCache\CacheInterface;
+use RuntimeException;
+use stdClass;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Adapter\NullAdapter;
+use Symfony\Component\Cache\Exception\InvalidArgumentException;
+use Symfony\Component\Cache\Psr16Cache;
+
+use function FastForward\Config\configCache;
 
 /**
  * @internal
  */
 #[CoversClass(CachedConfig::class)]
+#[UsesClass(AggregateConfig::class)]
 #[UsesClass(ArrayConfig::class)]
 #[UsesClass(ConfigHelper::class)]
+#[UsesTrait(LazyLoadConfigTrait::class)]
+#[UsesFunction('FastForward\Config\config')]
+#[UsesFunction('FastForward\Config\configCache')]
 final class CachedConfigTest extends TestCase
 {
-    use ProphecyTrait;
-
-    private CacheInterface|ObjectProphecy $cache;
-
-    private ConfigInterface|ObjectProphecy $defaultConfig;
-
-    private CachedConfig $cachedConfig;
-
     /**
      * @return void
      */
-    protected function setUp(): void
+    #[Test]
+    public function testDefaultKeysArePortableAndIsolateSameClassSources(): void
     {
-        $this->cache         = $this->prophesize(CacheInterface::class);
-        $this->defaultConfig = $this->prophesize(ConfigInterface::class);
+        $pool = new ArrayAdapter();
+        $cache = new Psr16Cache($pool);
+        $source = new ArrayConfig([
+            'app' => 'A',
+        ]);
+        $first = new CachedConfig($cache, $source);
+        $second = new CachedConfig($cache, new ArrayConfig([
+            'app' => 'B',
+        ]));
 
-        $this->cachedConfig = new CachedConfig(
-            cache: $this->cache->reveal(),
-            defaultConfig: $this->defaultConfig->reveal(),
-            persistent: true
-        );
+        self::assertSame([
+            'app' => 'A',
+        ], $first()->toArray());
+        self::assertSame([
+            'app' => 'B',
+        ], $second()->toArray());
+
+        $source->set('app', 'changed');
+        self::assertSame([
+            'app' => 'A',
+        ], $first()->toArray());
+
+        $keys = array_keys($pool->getValues());
+        self::assertCount(2, $keys);
+        foreach ($keys as $key) {
+            self::assertMatchesRegularExpression('/\A[A-Za-z0-9_.]{1,64}\z/', $key);
+        }
+    }
+
+    /**
+     * @param string $write
+     * @param string|null $cacheKey
+     * @param int $backendLifetime
+     * @param int|null $expectedLifetime
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('cacheWriteLifetimes')]
+    public function testCacheWritesPreserveTheExpectedLifetime(
+        string $write,
+        ?string $cacheKey,
+        int $backendLifetime,
+        ?int $expectedLifetime,
+    ): void {
+        [$cache, $advanceClock] = $this->createTimedCache($backendLifetime);
+        $source = new ArrayConfig([
+            'app' => 'source',
+        ]);
+        $config = new CachedConfig($cache, $source, persistent: true, cacheKey: $cacheKey);
+        $expected = $source->toArray();
+
+        if ('initial' === $write) {
+            self::assertSame($expected, $config()->toArray());
+        } else {
+            self::assertSame('source', $config->get('app'));
+            $advanceClock(299);
+            $this->mutate($config, $write);
+            $expected = 'set' === $write ? [
+                'app' => 'after',
+            ] : [];
+        }
+
+        $source->set('app', 'fresh source');
+        if (null === $expectedLifetime) {
+            $advanceClock(86_400);
+            self::assertSame($expected, $config()->toArray());
+
+            return;
+        }
+
+        $advanceClock($expectedLifetime - 1);
+        self::assertSame($expected, $config()->toArray());
+        $advanceClock(1);
+        self::assertSame([
+            'app' => 'fresh source',
+        ], $config()->toArray());
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function cacheWriteLifetimes(): iterable
+    {
+        foreach (['initial', 'set', 'remove'] as $write) {
+            yield $write . ' with a generated key' => [$write, null, 0, 300];
+            yield $write . ' with an explicit key and backend expiration' => [$write, 'app-config', 600, 600];
+            yield $write . ' with an explicit key and unlimited backend' => [$write, 'app-config', 0, null];
+        }
     }
 
     /**
      * @return void
      */
     #[Test]
-    public function testInvokeWillReturnCachedConfigInstanceWhenNotCached(): void
+    public function testDefaultHelperWorksWithStrictCacheAndIsolatesSources(): void
     {
-        $data = [
-            uniqid() => uniqid(),
-        ];
-
-        $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(false);
-        $this->defaultConfig->toArray()
-            ->willReturn($data);
-
-        $this->cache->set($this->defaultConfig->reveal()::class, $data)->shouldBeCalled();
-        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn($data);
-
-        $result = ($this->cachedConfig)();
-
-        self::assertInstanceOf(ArrayConfig::class, $result);
-        self::assertSame($data, $result->toArray());
-    }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testInvokeWillReturnCachedConfigInstanceWhenAlreadyCached(): void
-    {
-        $data = [
-            uniqid() => random_int(\PHP_INT_MIN, \PHP_INT_MAX),
-        ];
-
-        $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
-        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn($data);
-
-        $result = ($this->cachedConfig)();
-
-        self::assertInstanceOf(ArrayConfig::class, $result);
-        self::assertSame($data, $result->toArray());
-    }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testSetWillUpdateCacheWhenPersistentIsTrue(): void
-    {
-        $key   = uniqid();
-        $value = uniqid();
-        $data  = [
-            $key => $value,
-        ];
-
-        $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
-        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([]);
-
-        $this->cache->set($this->defaultConfig->reveal()::class, $data)->shouldBeCalled();
-
-        $this->cachedConfig->set($key, $value);
-
-        self::assertSame($value, $this->cachedConfig->get($key));
-    }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testSetWillNotUpdateCacheWhenPersistentIsFalse(): void
-    {
-        $cachedConfig = new CachedConfig(
-            cache: $this->cache->reveal(),
-            defaultConfig: $this->defaultConfig->reveal(),
-            persistent: false
-        );
-
-        $key   = uniqid();
-        $value = uniqid();
-
-        $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
-        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([]);
-
-        $this->cache->set($this->defaultConfig->reveal()::class, [
-            $key => $value,
-        ])->shouldNotBeCalled();
-
-        $cachedConfig->set($key, $value);
-    }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testRemoveWillUpdateCacheWhenPersistentIsTrue(): void
-    {
-        $key = uniqid();
-
-        $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
-        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([
-            $key => uniqid(),
+        $cache = new Psr16Cache(new ArrayAdapter());
+        $first = configCache($cache, [
+            'app' => 'A',
+        ]);
+        $second = configCache($cache, [
+            'app' => 'B',
         ]);
 
-        $this->cache->set($this->defaultConfig->reveal()::class, [])->shouldBeCalled();
+        self::assertSame('A', $first->get('app'));
+        self::assertSame('B', $second->get('app'));
+    }
 
-        $this->cachedConfig->remove($key);
+    /**
+     * @return void
+     *
+     * @throws RuntimeException
+     */
+    #[Test]
+    public function testDefaultKeyDoesNotResolveOrSerializeLazySource(): void
+    {
+        $source = new class implements ConfigInterface {
+            use LazyLoadConfigTrait;
 
-        self::assertFalse($this->cachedConfig->has($key));
+            public int $resolutions = 0;
+
+            /**
+             * @return ConfigInterface
+             */
+            public function __invoke(): ConfigInterface
+            {
+                ++$this->resolutions;
+
+                return new ArrayConfig([
+                    'app' => 'available',
+                ]);
+            }
+
+            /**
+             * @return array
+             *
+             * @throws RuntimeException
+             */
+            public function __serialize(): array
+            {
+                throw new RuntimeException('The lazy source must not be serialized.');
+            }
+        };
+        $config = new CachedConfig(new Psr16Cache(new ArrayAdapter()), $source);
+
+        self::assertSame(0, $source->resolutions);
+        self::assertSame([
+            'app' => 'available',
+        ], $config()->toArray());
+        self::assertSame([
+            'app' => 'available',
+        ], $config()->toArray());
+        self::assertSame(1, $source->resolutions);
     }
 
     /**
      * @return void
      */
     #[Test]
-    public function testRemoveWillNotUpdateCacheWhenPersistentIsFalse(): void
+    public function testExplicitKeySharesEntriesWithoutResolvingSourceOnHit(): void
     {
-        $cachedConfig = new CachedConfig(
-            cache: $this->cache->reveal(),
-            defaultConfig: $this->defaultConfig->reveal(),
-            persistent: false
+        $cache = new Psr16Cache(new ArrayAdapter());
+        $writer = new CachedConfig($cache, new ArrayConfig([
+            'app' => 'shared',
+        ]), cacheKey: 'app-config');
+        self::assertSame('shared', $writer->get('app'));
+
+        $source = $this->createMock(ConfigInterface::class);
+        $source->expects(self::never())->method('toArray');
+        $reader = new CachedConfig($cache, $source, cacheKey: 'app-config');
+
+        self::assertSame([
+            'app' => 'shared',
+        ], $cache->get('app-config'));
+        self::assertSame('shared', $reader->get('app'));
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testEmptyArrayIsAHit(): void
+    {
+        $cache = new Psr16Cache(new ArrayAdapter());
+        $cache->set('app-config', []);
+
+        $source = $this->createMock(ConfigInterface::class);
+        $source->expects(self::never())->method('toArray');
+        $config = new CachedConfig($cache, $source, cacheKey: 'app-config');
+
+        self::assertSame([], $config->toArray());
+    }
+
+    /**
+     * @param mixed $entry
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('unusableCacheValues')]
+    public function testUnusableEntryResolvesSourceWithoutHasOrReadback(mixed $entry): void
+    {
+        $data = [
+            'app' => 'available',
+        ];
+        $source = $this->createMock(ConfigInterface::class);
+        $source->expects(self::once())->method('toArray')->willReturn($data);
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->expects(self::never())->method('has');
+        $cache->expects(self::once())->method('get')->with('app-config')->willReturn($entry);
+        $cache->expects(self::once())->method('set')->with('app-config', $data)->willReturn(true);
+        $config = new CachedConfig($cache, $source, cacheKey: 'app-config');
+
+        self::assertSame($data, $config->toArray());
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function unusableCacheValues(): iterable
+    {
+        yield 'miss or eviction' => [null];
+        yield 'false' => [false];
+        yield 'integer' => [1];
+        yield 'string' => ['stale'];
+        yield 'object' => [new stdClass()];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testNonRetainingCacheReturnsSource(): void
+    {
+        $config = new CachedConfig(
+            new Psr16Cache(new NullAdapter()),
+            new ArrayConfig([
+                'app' => 'available',
+            ]),
+            cacheKey: 'app-config',
         );
 
-        $key = uniqid();
+        self::assertSame([
+            'app' => 'available',
+        ], $config->toArray());
+        self::assertSame('available', $config->get('app'));
+    }
 
-        $this->cache->has($this->defaultConfig->reveal()::class)->willReturn(true);
-        $this->cache->get($this->defaultConfig->reveal()::class)->willReturn([
-            $key => uniqid(),
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testFailedInitialPublicationReturnsSourceAndRetainsLocalConfig(): void
+    {
+        $data = [
+            'app' => 'available',
+        ];
+        $source = $this->createMock(ConfigInterface::class);
+        $source->expects(self::once())->method('toArray')->willReturn($data);
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->expects(self::once())->method('get')->with('app-config')->willReturn(null);
+        $cache->expects(self::once())->method('set')->with('app-config', $data)->willReturn(false);
+        $config = new CachedConfig($cache, $source, persistent: true, cacheKey: 'app-config');
+
+        self::assertSame($data, $config->toArray());
+        self::assertSame('available', $config->get('app'));
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testEvictionResolvesSourceAgain(): void
+    {
+        $cache = new Psr16Cache(new ArrayAdapter());
+        $source = new ArrayConfig([
+            'app' => 'before',
+        ]);
+        $config = new CachedConfig($cache, $source, cacheKey: 'app-config');
+        self::assertSame('before', $config()->get('app'));
+
+        $cache->delete('app-config');
+        $source->set('app', 'after');
+
+        self::assertSame('after', $config()->get('app'));
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testBackendInvalidKeyExceptionIsPropagated(): void
+    {
+        $source = $this->createMock(ConfigInterface::class);
+        $source->expects(self::never())->method('toArray');
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->expects(self::once())->method('get')->with('invalid:key')
+            ->willThrowException(new InvalidArgumentException('Invalid cache key.'));
+        $config = new CachedConfig($cache, $source, cacheKey: 'invalid:key');
+
+        $this->expectException(InvalidArgumentException::class);
+        $config->toArray();
+    }
+
+    /**
+     * @param string $mutation
+     * @param array $expected
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('mutations')]
+    public function testPersistentMutationsUpdateCache(string $mutation, array $expected): void
+    {
+        $cache = new Psr16Cache(new ArrayAdapter());
+        $cache->set('app-config', [
+            'app' => 'before',
         ]);
 
-        $this->cache->set($this->defaultConfig->reveal()::class, [])->shouldNotBeCalled();
+        $config = new CachedConfig($cache, new ArrayConfig(), persistent: true, cacheKey: 'app-config');
 
-        $cachedConfig->remove($key);
+        $this->mutate($config, $mutation);
 
-        self::assertFalse($cachedConfig->has($key));
+        self::assertSame($expected, $config->toArray());
+        self::assertSame($expected, $cache->get('app-config'));
+    }
+
+    /**
+     * @param string $mutation
+     * @param array $expected
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('mutations')]
+    public function testNonPersistentMutationsOnlyUpdateLocalConfig(string $mutation, array $expected): void
+    {
+        $cache = new Psr16Cache(new ArrayAdapter());
+        $cache->set('app-config', [
+            'app' => 'before',
+        ]);
+
+        $config = new CachedConfig($cache, new ArrayConfig(), cacheKey: 'app-config');
+
+        $this->mutate($config, $mutation);
+
+        self::assertSame($expected, $config->toArray());
+        self::assertSame([
+            'app' => 'before',
+        ], $cache->get('app-config'));
+    }
+
+    /**
+     * @param string $mutation
+     * @param array $expected
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('mutations')]
+    public function testFailedPersistentMutationsThrowAndKeepLocalChanges(string $mutation, array $expected): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->expects(self::once())->method('get')->with('app-config')->willReturn([
+            'app' => 'before',
+        ]);
+        $cache->expects(self::once())->method('set')->with('app-config', $expected)->willReturn(false);
+        $config = new CachedConfig($cache, new ArrayConfig(), persistent: true, cacheKey: 'app-config');
+
+        try {
+            $this->mutate($config, $mutation);
+            self::fail('A failed persistent write must be reported.');
+        } catch (RuntimeException $runtimeException) {
+            self::assertSame('Unable to persist configuration to the cache.', $runtimeException->getMessage());
+        }
+
+        self::assertSame($expected, $config->toArray());
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function mutations(): iterable
+    {
+        yield 'set' => [
+            'set', [
+                'app' => 'after',
+            ]];
+        yield 'remove' => ['remove', []];
+    }
+
+    /**
+     * Creates an in-memory PSR-16 test double whose clock advances without sleeping.
+     *
+     * @param int $defaultLifetime zero means the backend keeps entries indefinitely
+     *
+     * @return array{CacheInterface, Closure(int): void}
+     */
+    private function createTimedCache(int $defaultLifetime): array
+    {
+        $now = 0;
+        $entries = [];
+        $cache = self::createStub(CacheInterface::class);
+        $cache->method('get')
+            ->willReturnCallback(
+                static function (string $key, mixed $default = null) use (&$now, &$entries): mixed {
+                    if (! isset($entries[$key])) {
+                        return $default;
+                    }
+
+                    [$value, $expiresAt] = $entries[$key];
+                    if (null !== $expiresAt && $expiresAt <= $now) {
+                        unset($entries[$key]);
+
+                        return $default;
+                    }
+
+                    return $value;
+                },
+            );
+        $cache->method('set')
+            ->willReturnCallback(
+                static function (string $key, mixed $value, ?int $ttl = null) use (
+                    &$now,
+                    &$entries,
+                    $defaultLifetime
+                ): bool {
+                    $lifetime = $ttl ?? $defaultLifetime;
+                    $expiresAt = null === $ttl && 0 === $defaultLifetime ? null : $now + $lifetime;
+                    $entries[$key] = [$value, $expiresAt];
+
+                    return true;
+                },
+            );
+
+        $advanceClock = static function (int $seconds) use (&$now): void {
+            $now += $seconds;
+        };
+
+        return [$cache, $advanceClock];
+    }
+
+    /**
+     * @param CachedConfig $config
+     * @param string $mutation
+     *
+     * @return void
+     */
+    private function mutate(CachedConfig $config, string $mutation): void
+    {
+        if ('set' === $mutation) {
+            $config->set('app', 'after');
+
+            return;
+        }
+
+        $config->remove('app');
     }
 }

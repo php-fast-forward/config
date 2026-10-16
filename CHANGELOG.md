@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Give each CachedConfig wrapper an isolated, portable PSR-16 default key whose entries expire after 300 seconds. Cross-instance or cross-request reuse now requires an explicit cacheKey; old class-name entries are not reused.
+
 ### Removed
 
 - Remove the deprecated misspelled LamiasConfigAggregatorConfig class without an autoload alias fallback. This is an intentional compatibility break: replace imports, type declarations, and instantiations with LaminasConfigAggregatorConfig.
@@ -17,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Load, lock, and atomically replace the same resolved PhpFileConfig target, avoiding competing include_path files and anchoring relative inputs on first use across working-directory or Windows drive changes.
 - Follow current file and directory symlinks, including external retargeting and dangling chains, preserving intermediate links and rejecting cyclic or unresolvable chains before replacement.
 - Preserve existing POSIX file groups and permission bits during atomic persistence, rejecting replacements with InvalidArgumentException when required metadata cannot be retained or its functions are disabled.
+- Resolve valid source data on cache misses, evictions, non-array entries, and declined initial writes without a has()/get() race or mandatory cache readback, while preserving lazy cache hits.
+- Report failed persistent cache mutations with RuntimeException when the backend returns false, retaining the local mutation for application recovery.
+- Resolve PSR-11 container identifiers consistently, require the documented config. prefix, and report empty or unknown configuration identifiers as container not-found errors.
+- Use core string functions for directory paths and container prefixes so runtime-only PHP 8.3 consumers do not require undeclared multibyte functions or PHP 8.4 polyfills.
 - Document and test the explicit Laminas config_cache_enabled flag, writable parent requirements, and existing-file reuse for provider and directory file-cache examples.
 
 ## [1.6.0] - 2026-10-16

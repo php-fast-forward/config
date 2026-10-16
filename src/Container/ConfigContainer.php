@@ -57,7 +57,7 @@ final readonly class ConfigContainer implements ContainerInterface
      *
      * This method SHALL return true if:
      * - The identifier matches known internal bindings (alias, interface, or class).
-     * - The identifier is prefixed with 'config' and corresponds to an existing key in the configuration.
+     * - The identifier is prefixed with 'config.' and corresponds to an existing key in the configuration.
      *
      * @param string $id identifier of the entry to look for
      *
@@ -65,15 +65,13 @@ final readonly class ConfigContainer implements ContainerInterface
      */
     public function has(string $id): bool
     {
-        if ($this->isResolvedByContainer($id)) {
+        if (self::class === $id || $this->isResolvedByContainer($id)) {
             return true;
         }
 
-        if (! str_starts_with($id, self::ALIAS)) {
-            return false;
-        }
+        $key = $this->resolveKey($id);
 
-        return $this->config->has(mb_substr($id, mb_strlen(self::ALIAS) + 1));
+        return null !== $key && $this->config->has($key);
     }
 
     /**
@@ -102,15 +100,31 @@ final readonly class ConfigContainer implements ContainerInterface
             return $this->config;
         }
 
-        if (str_starts_with($id, self::ALIAS)) {
-            $id = mb_substr($id, mb_strlen(self::ALIAS) + 1);
+        $key = $this->resolveKey($id);
 
-            if ($this->config->has($id)) {
-                return $this->config->get($id);
-            }
+        if (null !== $key && $this->config->has($key)) {
+            return $this->config->get($key);
         }
 
         throw ContainerNotFoundException::forKey($id);
+    }
+
+    /**
+     * Returns a nonempty configuration path for the documented service prefix.
+     *
+     * @param string $id
+     */
+    private function resolveKey(string $id): ?string
+    {
+        $prefix = self::ALIAS . '.';
+
+        if (! str_starts_with($id, $prefix)) {
+            return null;
+        }
+
+        $key = substr($id, \strlen($prefix));
+
+        return '' !== $key ? $key : null;
     }
 
     /**
