@@ -93,7 +93,8 @@ Important constructor options:
 
 Relative inputs are anchored to an absolute location on first use, independently of PHP's
 ``include_path``. Later working-directory changes do not move the instance to another file.
-Each persistent mutation follows the current symlink chain from that location and uses the
+Each persistent mutation refreshes PHP's path caches before following the current symlink
+chain from that location, including directory links changed by another process. It uses the
 same resolved target for its lock, fresh read, and atomic replacement. Symlink chains are
 followed to the final target, including a missing target created from ``defaultConfig``;
 cyclic or excessively long chains raise
@@ -101,13 +102,17 @@ cyclic or excessively long chains raise
 
 Atomic replacements preserve existing permission bits and, on POSIX systems, the existing
 file's group. If the group or permissions cannot be applied to the temporary file, including
-when required group functions are disabled, the mutation raises ``InvalidArgumentException``
+when required metadata functions are disabled, the mutation raises ``InvalidArgumentException``
 and leaves the original file intact. New files use
 ``0666 & ~umask()`` and the filesystem's default creation group. Windows does not attempt POSIX
 group reassignment; its native permission behavior applies.
 
-On Windows, drive-relative paths such as ``C:settings.php`` use native resolution
-for existing targets. If such a path cannot be resolved, it raises
+On Windows, single-separator rooted paths such as ``\\settings.php`` or ``/settings.php``
+are anchored to the initial drive or UNC volume on first use. Fully qualified drive,
+UNC, and DOS device paths retain their supplied root.
+
+Drive-relative paths such as ``C:settings.php`` use native PHP resolution when available.
+If such a path cannot be resolved, including an existing path unsupported by native PHP, it raises
 ``InvalidArgumentException`` before creating directories, locks, or files. Use a
 fully qualified path such as ``C:\\app\\settings.php`` when creating a new target.
 

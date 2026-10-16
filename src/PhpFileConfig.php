@@ -345,6 +345,19 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function absolutePath(string $path, ?string $directory = null): string
     {
+        if ('\\' === \DIRECTORY_SEPARATOR && 1 === strspn($path, '\\/')) {
+            $directory ??= getcwd();
+            if (false === $directory || 1 !== preg_match(
+                '~^(?:[a-zA-Z]:|[\\\\/]{2}(?:[?.][\\\\/]UNC[\\\\/])?[^\\\\/]+[\\\\/][^\\\\/]+)~i',
+                $directory,
+                $root
+            )) {
+                throw InvalidArgumentException::forUnreadableFile($this->file);
+            }
+
+            return $root[0] . $path;
+        }
+
         if (str_starts_with($path, '/') || str_contains($path, '://')
             || ('\\' === \DIRECTORY_SEPARATOR && (str_starts_with($path, '\\') || 1 === preg_match(
                 '~^[a-zA-Z]:[\\\\/]~',

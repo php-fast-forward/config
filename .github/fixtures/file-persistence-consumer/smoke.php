@@ -116,7 +116,10 @@ try {
         echo 'passed: native-unresolvable drive-relative path rejected without changes' . \PHP_EOL;
     } else {
         $config->set('saved', true);
-        check(true === (require $driveExisting)['saved'], 'An existing drive-relative path did not use native resolution.');
+        check(
+            true === (require $driveExisting)['saved'],
+            'An existing drive-relative path did not use native resolution.'
+        );
         echo 'passed: existing drive-relative path' . \PHP_EOL;
     }
 

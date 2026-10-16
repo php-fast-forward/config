@@ -14,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Normalize each provider or PHP file's dot and slash paths before Laminas merges sources, preserving later-source precedence, list order, merge instructions, lazy loading, and file-cache behavior.
-- Load, lock, and atomically replace the same resolved PhpFileConfig target, avoiding competing include_path files and anchoring relative inputs on first use across working-directory changes while following current symlink targets.
-- Follow dangling symlink chains to their final target during persistent mutations, preserving intermediate links and rejecting cyclic or unresolvable chains before replacement.
+- Load, lock, and atomically replace the same resolved PhpFileConfig target, avoiding competing include_path files and anchoring relative inputs on first use across working-directory or Windows drive changes.
+- Follow current file and directory symlinks, including external retargeting and dangling chains, preserving intermediate links and rejecting cyclic or unresolvable chains before replacement.
 - Preserve existing POSIX file groups and permission bits during atomic persistence, rejecting replacements with InvalidArgumentException when required metadata cannot be retained or its functions are disabled.
 - Document and test the explicit Laminas config_cache_enabled flag, writable parent requirements, and existing-file reuse for provider and directory file-cache examples.
 
