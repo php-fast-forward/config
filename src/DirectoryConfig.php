@@ -94,15 +94,30 @@ class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInt
      */
     private function discoverFiles(): array
     {
+        $files = [];
+
+        foreach ($this->discoverDirectories() as $directory => $realDirectory) {
+            foreach ($this->matchFiles($directory, $realDirectory) as $file) {
+                $files[$file] = $file;
+            }
+        }
+
+        return array_values($files);
+    }
+
+    /**
+     * Yields directory paths and their canonical identities in depth-then-path order.
+     *
+     * @return Generator<string, string>
+     */
+    private function discoverDirectories(): Generator
+    {
         $directories = [$this->directory];
         $seenDirectories = [];
-        $seenFiles = [];
-        $files = [];
 
         while ([] !== $directories) {
             usort($directories, static fn(string $first, string $second): int => strcmp($first . '/', $second . '/'));
             $nextDirectories = [];
-            $levelFiles = [];
             foreach ($directories as $directory) {
                 $realDirectory = realpath($directory);
                 if (false === $realDirectory) {
@@ -114,48 +129,68 @@ class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInt
                 }
 
                 $seenDirectories[$realDirectory] = true;
-                $pattern = $this->escapeDirectory($directory) . '/' . static::PATTERN;
-                foreach ($this->glob($pattern) as $file) {
-                    $file = (string) $file;
-                    if (is_file($file) && $this->isWithinDirectory($file, $realDirectory)) {
-                        $levelFiles[] = $file;
-                    }
-                }
-
-                if (! static::RECURSIVE) {
-                    continue;
-                }
-
-                $iterator = $this->openDirectory($directory);
-                if (! $iterator instanceof DirectoryIterator) {
-                    continue;
-                }
-
-                foreach ($iterator as $entry) {
-                    if ($entry->isDir() && ! $entry->isLink() && ! str_starts_with($entry->getFilename(), '.')) {
-                        $nextDirectories[] = $entry->getPathname();
-                    }
-                }
-            }
-
-            foreach ($levelFiles as $file) {
-                $realFile = realpath($file);
-                if (false === $realFile) {
-                    continue;
-                }
-
-                if (isset($seenFiles[$realFile])) {
-                    continue;
-                }
-
-                $seenFiles[$realFile] = true;
-                $files[] = $realFile;
+                yield $directory => $realDirectory;
+                array_push($nextDirectories, ...$this->discoverChildDirectories($directory));
             }
 
             $directories = $nextDirectories;
         }
+    }
 
-        return $files;
+    /**
+     * Matches the configured pattern inside a literal directory and resolves each file.
+     *
+     * @param string $directory the discovered directory path
+     * @param string $realDirectory its canonical identity
+     *
+     * @return Generator<int, string>
+     */
+    private function matchFiles(string $directory, string $realDirectory): Generator
+    {
+        $pattern = $this->escapeDirectory($directory) . '/' . static::PATTERN;
+        foreach ($this->glob($pattern) as $file) {
+            $file = (string) $file;
+            if (! is_file($file)) {
+                continue;
+            }
+
+            if (! $this->isWithinDirectory($file, $realDirectory)) {
+                continue;
+            }
+
+            $realFile = realpath($file);
+            if (false !== $realFile) {
+                yield $realFile;
+            }
+        }
+    }
+
+    /**
+     * Selects visible child directories when recursive discovery is enabled.
+     *
+     * @param string $directory the parent directory path
+     *
+     * @return list<string>
+     */
+    private function discoverChildDirectories(string $directory): array
+    {
+        if (! static::RECURSIVE) {
+            return [];
+        }
+
+        $iterator = $this->openDirectory($directory);
+        if (! $iterator instanceof DirectoryIterator) {
+            return [];
+        }
+
+        $directories = [];
+        foreach ($iterator as $entry) {
+            if ($entry->isDir() && ! $entry->isLink() && ! str_starts_with($entry->getFilename(), '.')) {
+                $directories[] = $entry->getPathname();
+            }
+        }
+
+        return $directories;
     }
 
     /**
