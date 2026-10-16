@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Normalize each provider or PHP file's dot and slash paths before Laminas merges sources, preserving later-source precedence, list order, merge instructions, lazy loading, and file-cache behavior.
+- Load PHP configuration at every recursive directory depth in deterministic depth-and-path order, preserve filename-pattern overrides, and include resolved files once without traversing child directory symlinks.
+- Keep accessible configuration available when a child directory is unreadable or disappears during recursive discovery, while preserving root read failures and unrelated errors.
+- Treat directory path metacharacters literally during top-level and recursive discovery, preventing similarly named sibling directories from contributing configuration.
+- Include discovered configuration through resolved absolute paths so relative roots cannot load outside namesakes through include_path or changes to the working directory.
 - Resolve valid source data on cache misses, evictions, non-array entries, and declined initial writes without a has()/get() race or mandatory cache readback, while preserving lazy cache hits.
 - Report failed persistent cache mutations with RuntimeException when the backend returns false, retaining the local mutation for application recovery.
 - Resolve PSR-11 container identifiers consistently, require the documented config. prefix, and report empty or unknown configuration identifiers as container not-found errors.

@@ -128,6 +128,8 @@ If your project already uses a ``config/`` directory, keep that structure and lo
 
    echo $config->get('mail.transport');
 
+Recursive discovery includes every nested directory level. The directory path is literal, so names such as ``config[local]`` are supported. See :doc:`../api-interfaces` for deterministic merge order, symlink handling, and generated-cache invalidation.
+
 Exposing Config Through PSR-11
 ------------------------------
 
