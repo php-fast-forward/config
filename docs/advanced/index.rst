@@ -10,3 +10,4 @@ These pages explain how the package behaves once you move past the first example
    lazy-loading
    providers
    caching
+   agent-skill

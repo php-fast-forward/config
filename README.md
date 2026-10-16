@@ -158,6 +158,15 @@ config/
 
 ---
 
+## Agent skill
+
+The portable [fast-forward-config skill](skills/fast-forward-config/SKILL.md)
+guides coding agents consuming the library, including version checks, composition,
+paths, persistence, cache identities and PSR-11 integration. It was added after
+v1.6.0; use a reviewed revision containing it until a release bundles the package.
+See the [installation guide](docs/advanced/agent-skill.rst) for project-local
+copies, opt-in global installation, pinned assisted commands, updates and removal.
+
 ## 🛡 License
 
 MIT © 2025 [Felipe Sayão Lobato Abreu](https://github.com/mentordosnerds)
