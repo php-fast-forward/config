@@ -59,6 +59,28 @@ try {
     check(2 === count($roots), 'Two writable Windows drives are required for the cross-drive regression.');
     echo 'native drives: ' . substr($roots[0], 0, 2) . ' and ' . substr($roots[1], 0, 2) . \PHP_EOL;
 
+    foreach ($roots as $root) {
+        $process = proc_open([\PHP_BINARY, __DIR__ . '/drive-relative.php'], [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ], $pipes, $root);
+        check(is_resource($process), 'The native drive-relative subprocess could not start.');
+        fclose($pipes[0]);
+        $output = stream_get_contents($pipes[1]);
+        $errors = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        check(0 === proc_close($process), $errors);
+        $native = json_decode($output, true, 512, \JSON_THROW_ON_ERROR);
+        echo 'native drive-relative capability: ' . $output . \PHP_EOL;
+        foreach ($native['retarget_checks'] as $kind => $case) {
+            if ($case['native_input_supported'] ?? false) {
+                check($case['passed'], 'A drive-relative symlink froze its ' . $kind . ' target.');
+            }
+        }
+    }
+
     $qualified = $roots[0] . '/qualified.php';
     file_put_contents($qualified, '<?php chdir(' . var_export($roots[1], true) . '); return ["initial" => true];');
     chdir($roots[0]);

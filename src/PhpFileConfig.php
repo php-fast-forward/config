@@ -299,7 +299,7 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function resolveTargetFile(): string
     {
-        if (! \function_exists('clearstatcache')) {
+        if (! \function_exists('realpath') || ! \function_exists('clearstatcache')) {
             throw InvalidArgumentException::forUnreadableFile($this->file);
         }
 

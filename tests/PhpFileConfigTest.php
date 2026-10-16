@@ -1034,6 +1034,8 @@ final class PhpFileConfigTest extends TestCase
      */
     public static function disabledMetadataFunctions(): iterable
     {
+        yield 'realpath disabled during set' => ['realpath', 'set'];
+        yield 'realpath disabled during remove' => ['realpath', 'remove'];
         yield 'cache refresh disabled during set' => ['clearstatcache', 'set'];
         yield 'cache refresh disabled during remove' => ['clearstatcache', 'remove'];
         yield 'stat disabled during set' => ['stat', 'set'];
@@ -1105,6 +1107,44 @@ final class PhpFileConfigTest extends TestCase
     {
         yield 'new file without metadata functions' => ['stat,filegroup,chgrp', false];
         yield 'existing group already matches without chgrp' => ['chgrp', true];
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function readsWithoutRealpath(): iterable
+    {
+        yield 'absolute input' => [false];
+        yield 'relative input' => [true];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('readsWithoutRealpath')]
+    public function testUnavailableRealpathRejectsReadsThroughTheLibraryException(bool $relative): void
+    {
+        if (! \function_exists('proc_open')) {
+            self::markTestSkipped('Subprocess support is required to disable realpath.');
+        }
+
+        mkdir($this->tempDirectory);
+        $file = $this->tempDirectory . '/settings.php';
+        $content = '<?php return ["initial" => true];';
+        file_put_contents($file, $content);
+        $workingDirectory = getcwd();
+
+        try {
+            chdir($this->tempDirectory);
+            $result = $this->runWithDisabledMetadataFunctions($relative ? 'settings.php' : $file, 'get', 'realpath');
+            self::assertFalse($result['function_available']);
+            self::assertSame(InvalidArgumentException::class, $result['exception'], $result['message'] ?? '');
+            self::assertSame($content, file_get_contents($file));
+            self::assertCount(1, iterator_to_array(new FilesystemIterator($this->tempDirectory)));
+        } finally {
+            chdir($workingDirectory);
+        }
     }
 
     /**

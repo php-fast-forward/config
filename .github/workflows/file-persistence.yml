@@ -9,8 +9,12 @@ permissions:
 
 jobs:
   windows:
-    name: File persistence (Windows, PHP 8.3)
+    name: File persistence (Windows, PHP ${{ matrix.php }})
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4', '8.5']
     env:
       COMPOSER_MIRROR_PATH_REPOS: '1'
     steps:
@@ -19,7 +23,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: ${{ matrix.php }}
           coverage: none
           tools: composer:v2
       - name: Install isolated runtime consumer and verify persistence

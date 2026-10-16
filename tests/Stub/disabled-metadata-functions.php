@@ -11,8 +11,10 @@ try {
     $config = new PhpFileConfig($argv[2], persistent: true, defaultConfig: []);
     if ('set' === $argv[3]) {
         $config->set('saved', true);
-    } else {
+    } elseif ('remove' === $argv[3]) {
         $config->remove('initial');
+    } else {
+        $config->get('initial');
     }
 
     $result = [
