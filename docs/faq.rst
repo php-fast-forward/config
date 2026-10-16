@@ -26,7 +26,7 @@ How do I use the package with a PSR-11 container?
    Wrap the config object in ``FastForward\\Config\\Container\\ConfigContainer``. Then use identifiers such as ``config`` for the whole config or ``config.database.host`` for one value. See :doc:`advanced/integration`.
 
 What is the difference between ``configCache()`` and ``cachedConfigFile``?
-   ``configCache()`` uses a PSR-16 backend and caches the final merged array. ``cachedConfigFile`` delegates to Laminas ConfigAggregator and stores a generated PHP cache file on disk. See :doc:`advanced/caching`.
+   ``configCache()`` uses a PSR-16 backend and caches the final merged array. ``cachedConfigFile`` delegates to Laminas ConfigAggregator. It reads an existing PHP cache file first; generating a missing file additionally requires a truthy ``config_cache_enabled`` entry and an existing, writable parent directory. The Laminas flag does not control PSR-16 caching. See :doc:`advanced/caching`.
 
 What errors should I expect?
    ``InvalidArgumentException`` is used for invalid inputs such as unreadable directories. ``ContainerNotFoundException`` is used when ``ConfigContainer`` cannot resolve an identifier. See :doc:`api-exceptions`.

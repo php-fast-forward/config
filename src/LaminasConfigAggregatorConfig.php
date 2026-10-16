@@ -39,6 +39,7 @@ class LaminasConfigAggregatorConfig implements ConfigInterface
      *
      * This constructor SHALL accept a set of configuration providers and an optional cache file path.
      * Providers MUST be iterable and yield valid configuration arrays.
+     * Generating a cache file additionally requires a truthy config_cache_enabled entry in merged provider output.
      *
      * @param iterable $providers the configuration providers for aggregation
      * @param string|null $cachedConfigFile the optional path to a cached config file
