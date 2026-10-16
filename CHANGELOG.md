@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Normalize each provider or PHP file's dot and slash paths before Laminas merges sources, preserving later-source precedence, list order, merge instructions, lazy loading, and file-cache behavior.
+- Load PHP configuration at every recursive directory depth in deterministic depth-and-path order, preserve filename-pattern overrides, and include resolved files once without traversing child directory symlinks.
+- Treat directory path metacharacters literally during top-level and recursive discovery, preventing similarly named sibling directories from contributing configuration.
 
 ## [1.6.0] - 2026-10-16
 

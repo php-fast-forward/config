@@ -18,20 +18,23 @@ declare(strict_types=1);
 
 namespace FastForward\Config;
 
+use DirectoryIterator;
 use FastForward\Config\Exception\InvalidArgumentException;
-use Laminas\ConfigAggregator\PhpFileProvider;
+use Generator;
+use Laminas\ConfigAggregator\GlobTrait;
 
 /**
  * Class DirectoryConfig.
  *
  * Loads and aggregates configuration from a specified directory containing PHP files.
- * This class MUST validate the target directory and use the Laminas PhpFileProvider to collect configurations.
+ * This class MUST validate the target directory and match file names using Laminas glob semantics.
  * It MAY cache the aggregated result if a cached config file path is provided.
  *
  * @extends LaminasConfigAggregatorConfig
  */
 class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInterface
 {
+    use GlobTrait;
     use LazyLoadConfigTrait;
 
     /**
@@ -40,10 +43,15 @@ class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInt
     protected const PATTERN = '{,*}.php';
 
     /**
+     * @var bool whether child directories should be discovered
+     */
+    protected const RECURSIVE = false;
+
+    /**
      * Constructs a DirectoryConfig instance.
      *
      * This constructor SHALL validate the specified directory, and initialize
-     * the Laminas config aggregator with a PHP file provider using the defined pattern.
+     * the Laminas config aggregator with a lazy file provider using the defined pattern.
      * If a cache file is provided, it SHALL be used to store the aggregated configuration.
      *
      * @param string $directory the directory path from which to load configuration files
@@ -59,11 +67,143 @@ class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInt
             throw InvalidArgumentException::forUnreadableDirectory($this->directory);
         }
 
-        $pattern = mb_rtrim($this->directory, \DIRECTORY_SEPARATOR) . \DIRECTORY_SEPARATOR . static::PATTERN;
-
         parent::__construct(
-            providers: [new PhpFileProvider($pattern)],
+            providers: [$this->provideConfigs(...)],
             cachedConfigFile: $this->cachedConfigFile,
         );
+    }
+
+    /**
+     * Includes discovered PHP files only when the aggregator resolves this provider.
+     *
+     * @return Generator
+     */
+    private function provideConfigs(): Generator
+    {
+        foreach ($this->discoverFiles() as $file) {
+            yield include $file;
+        }
+    }
+
+    /**
+     * Discovers files in depth-then-path order without following directory symlinks.
+     *
+     * @return list<string>
+     */
+    private function discoverFiles(): array
+    {
+        $directories = [$this->directory];
+        $seenDirectories = [];
+        $seenFiles = [];
+        $files = [];
+
+        while ([] !== $directories) {
+            usort($directories, static fn(string $first, string $second): int => strcmp($first . '/', $second . '/'));
+            $nextDirectories = [];
+            $levelFiles = [];
+            foreach ($directories as $directory) {
+                $realDirectory = realpath($directory);
+                if (false === $realDirectory) {
+                    continue;
+                }
+
+                if (isset($seenDirectories[$realDirectory])) {
+                    continue;
+                }
+
+                $seenDirectories[$realDirectory] = true;
+                $pattern = $this->escapeDirectory($directory) . '/' . static::PATTERN;
+                foreach ($this->glob($pattern) as $file) {
+                    $file = (string) $file;
+                    if (is_file($file) && $this->isWithinDirectory($file, $realDirectory)) {
+                        $levelFiles[] = $file;
+                    }
+                }
+
+                if (! static::RECURSIVE) {
+                    continue;
+                }
+
+                foreach (new DirectoryIterator($directory) as $entry) {
+                    if ($entry->isDir() && ! $entry->isLink() && ! str_starts_with($entry->getFilename(), '.')) {
+                        $nextDirectories[] = $entry->getPathname();
+                    }
+                }
+            }
+
+            foreach ($levelFiles as $file) {
+                $realFile = realpath($file);
+                if (false === $realFile) {
+                    continue;
+                }
+
+                if (isset($seenFiles[$realFile])) {
+                    continue;
+                }
+
+                $seenFiles[$realFile] = true;
+                $files[] = $file;
+            }
+
+            $directories = $nextDirectories;
+        }
+
+        return $files;
+    }
+
+    /**
+     * Checks a candidate's canonical parent against the selected literal directory.
+     *
+     * @param string $file the candidate path
+     * @param string $directory the canonical selected directory
+     *
+     * @return bool
+     */
+    private function isWithinDirectory(string $file, string $directory): bool
+    {
+        $parent = realpath(\dirname($file));
+        if (false === $parent) {
+            return false;
+        }
+
+        $prefix = rtrim($directory, \DIRECTORY_SEPARATOR) . \DIRECTORY_SEPARATOR;
+
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            return 0 === strcasecmp($directory, $parent) || 0 === strncasecmp($parent, $prefix, \strlen($prefix));
+        }
+
+        return $directory === $parent || str_starts_with($parent, $prefix);
+    }
+
+    /**
+     * Escapes only the directory, leaving the library's filename pattern intact.
+     *
+     * @param string $directory the literal directory path
+     *
+     * @return string
+     */
+    private function escapeDirectory(string $directory): string
+    {
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            $directory = str_replace('\\', '/', $directory);
+
+            // Windows glob forces GLOB_NOESCAPE. Verify candidate parent identities before including files.
+            return strtr(rtrim($directory, '/'), [
+                '[' => '[[]',
+                ']' => '[]]',
+                '{' => '?',
+                '}' => '?',
+            ]);
+        }
+
+        return strtr(rtrim($directory, '/'), [
+            '\\' => '\\\\',
+            '[' => '\\[',
+            ']' => '\\]',
+            '*' => '\\*',
+            '?' => '\\?',
+            '{' => '\\{',
+            '}' => '\\}',
+        ]);
     }
 }
