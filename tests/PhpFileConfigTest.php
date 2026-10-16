@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace FastForward\Config\Tests;
 
+use Composer\Autoload\ClassLoader;
 use FastForward\Config\ArrayAccessConfigTrait;
 use FastForward\Config\ArrayConfig;
 use FastForward\Config\Exception\InvalidArgumentException;
@@ -31,6 +32,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\Attributes\UsesTrait;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 /**
  * @internal
@@ -657,11 +659,25 @@ final class PhpFileConfigTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{bool, bool}>
+     */
+    public static function workingDirectoryChanges(): iterable
+    {
+        yield 'mutation first without competing file' => [false, false];
+        yield 'mutation first with competing file' => [false, true];
+        yield 'read first without competing file' => [true, false];
+        yield 'read first with competing file' => [true, true];
+    }
+
+    /**
      * @return void
      */
     #[Test]
-    public function testPersistentMutationKeepsItsResolvedTargetWhenLoadedCodeChangesCwd(): void
-    {
+    #[DataProvider('workingDirectoryChanges')]
+    public function testPersistentMutationsKeepTheirTargetWhenLoadedCodeChangesCwd(
+        bool $readFirst,
+        bool $competingFile
+    ): void {
         mkdir($this->tempDirectory . '/source', 0o777, true);
         mkdir($this->tempDirectory . '/other');
 
@@ -670,18 +686,105 @@ final class PhpFileConfigTest extends TestCase
             $sourceFile,
             '<?php chdir(' . var_export($this->tempDirectory . '/other', true) . '); return ["initial" => true];'
         );
+        $otherFile = $this->tempDirectory . '/other/settings.php';
+        $otherContent = '<?php return ["other" => true];';
+        if ($competingFile) {
+            file_put_contents($otherFile, $otherContent);
+        }
+
         $workingDirectory = getcwd();
 
         try {
             chdir($this->tempDirectory . '/source');
             $config = new PhpFileConfig('settings.php', persistent: true);
+            if ($readFirst) {
+                self::assertTrue($config->get('initial'));
+            }
+
+            $config->set('saved', true);
+            $config->set('again', true);
+            $config->remove('initial');
+
+            self::assertSame([
+                'saved' => true,
+                'again' => true,
+            ], require $sourceFile);
+            if ($competingFile) {
+                self::assertSame($otherContent, file_get_contents($otherFile));
+            } else {
+                self::assertFileDoesNotExist($otherFile);
+            }
+        } finally {
+            chdir($workingDirectory);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testRelativeSymlinkCanBeRetargetedAfterItsFirstRead(): void
+    {
+        mkdir($this->tempDirectory . '/source', 0o777, true);
+        mkdir($this->tempDirectory . '/other');
+        $first = $this->tempDirectory . '/source/first.php';
+        $second = $this->tempDirectory . '/source/second.php';
+        $link = $this->tempDirectory . '/source/settings.php';
+        file_put_contents($first, '<?php return ["first" => true];');
+        file_put_contents($second, '<?php return ["second" => true];');
+        $this->createSymlink('first.php', $link);
+        $workingDirectory = getcwd();
+
+        try {
+            chdir($this->tempDirectory . '/source');
+            $config = new PhpFileConfig('settings.php', persistent: true);
+            self::assertTrue($config->get('first'));
+
+            chdir($this->tempDirectory . '/other');
+            unlink($link);
+            $this->createSymlink('second.php', $link);
             $config->set('saved', true);
 
             self::assertSame([
-                'initial' => true,
+                'first' => true,
+            ], require $first);
+            self::assertSame([
+                'second' => true,
                 'saved' => true,
-            ], require $sourceFile);
+            ], require $second);
+            self::assertSame('second.php', readlink($link));
             self::assertFileDoesNotExist($this->tempDirectory . '/other/settings.php');
+        } finally {
+            chdir($workingDirectory);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testMissingRelativeFileKeepsItsLocationAfterReadingDefaults(): void
+    {
+        mkdir($this->tempDirectory . '/source', 0o777, true);
+        mkdir($this->tempDirectory . '/other');
+        $workingDirectory = getcwd();
+
+        try {
+            chdir($this->tempDirectory . '/source');
+            $config = new PhpFileConfig('nested/settings.php', persistent: true, defaultConfig: [
+                'initial' => true,
+            ]);
+            self::assertTrue($config->get('initial'));
+
+            chdir($this->tempDirectory . '/other');
+            $config->set('saved', true);
+            $config->remove('initial');
+
+            self::assertFileExists($this->tempDirectory . '/source/nested/settings.php');
+            self::assertSame([
+                'saved' => true,
+            ], require $this->tempDirectory . '/source/nested/settings.php');
+            self::assertDirectoryDoesNotExist($this->tempDirectory . '/other/nested');
         } finally {
             chdir($workingDirectory);
         }
@@ -882,6 +985,108 @@ final class PhpFileConfigTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function disabledMetadataFunctions(): iterable
+    {
+        yield 'filegroup disabled during set' => ['filegroup', 'set'];
+        yield 'filegroup disabled during remove' => ['filegroup', 'remove'];
+        yield 'chgrp disabled during set' => ['chgrp', 'set'];
+        yield 'chgrp disabled during remove' => ['chgrp', 'remove'];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('disabledMetadataFunctions')]
+    public function testUnavailableMetadataFunctionsRejectReplacementWithoutChangingTheFile(
+        string $function,
+        string $operation
+    ): void {
+        if ('\\' === \DIRECTORY_SEPARATOR || ! \function_exists('proc_open')) {
+            self::markTestSkipped('POSIX metadata and subprocess support are required.');
+        }
+
+        mkdir($this->tempDirectory);
+        $file = $this->tempDirectory . '/settings.php';
+        $content = '<?php return ["initial" => true];';
+        file_put_contents($file, $content);
+        $group = filegroup($file);
+
+        if ('chgrp' === $function) {
+            if (! \function_exists('posix_getgroups')) {
+                self::markTestSkipped('Supplementary groups are required to exercise a group change.');
+            }
+
+            $group = null;
+            $creationGroup = filegroup($file);
+            foreach (posix_getgroups() as $candidate) {
+                if ($candidate !== $creationGroup && @chgrp($file, $candidate)) {
+                    $group = $candidate;
+
+                    break;
+                }
+            }
+
+            if (null === $group) {
+                self::markTestSkipped('No different permitted supplementary group is available.');
+            }
+        }
+
+        chmod($file, 0o640);
+        $result = $this->runWithDisabledMetadataFunctions($file, $operation, $function);
+        self::assertFalse($result['function_available']);
+        self::assertSame(
+            InvalidArgumentException::class,
+            $result['exception'],
+            $result['message'] ?? 'No exception was thrown.'
+        );
+        clearstatcache(true, $file);
+        self::assertSame($content, file_get_contents($file));
+        self::assertSame($group, filegroup($file));
+        self::assertSame(0o640, fileperms($file) & 0o777);
+        self::assertSame([], glob($this->tempDirectory . '/cfg_*'));
+    }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function unusedMetadataFunctions(): iterable
+    {
+        yield 'new file without filegroup and chgrp' => ['filegroup,chgrp', false];
+        yield 'existing group already matches without chgrp' => ['chgrp', true];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('unusedMetadataFunctions')]
+    public function testUnusedMetadataFunctionsDoNotBlockPersistence(string $functions, bool $existing): void
+    {
+        if ('\\' === \DIRECTORY_SEPARATOR || ! \function_exists('proc_open')) {
+            self::markTestSkipped('POSIX metadata and subprocess support are required.');
+        }
+
+        mkdir($this->tempDirectory);
+        $file = $this->tempDirectory . '/settings.php';
+        if ($existing) {
+            file_put_contents($file, '<?php return ["initial" => true];');
+        }
+
+        $result = $this->runWithDisabledMetadataFunctions($file, 'set', $functions);
+        self::assertFalse($result['function_available']);
+        self::assertNull($result['exception'], $result['message'] ?? '');
+        self::assertTrue((require $file)['saved']);
+        if ($existing) {
+            self::assertTrue((require $file)['initial']);
+        }
+
+        self::assertSame([], glob($this->tempDirectory . '/cfg_*'));
+    }
+
+    /**
      * @return void
      */
     #[Test]
@@ -921,6 +1126,42 @@ final class PhpFileConfigTest extends TestCase
         if (! @symlink($target, $link)) {
             self::markTestSkipped('Symlinks cannot be created in this environment.');
         }
+    }
+
+    /**
+     * @param string $file
+     * @param string $operation
+     * @param string $functions
+     *
+     * @return array{exception: string|null, function_available: bool, message?: string}
+     */
+    private function runWithDisabledMetadataFunctions(string $file, string $operation, string $functions): array
+    {
+        $autoload = \dirname((new ReflectionClass(ClassLoader::class))->getFileName(), 2) . '/autoload.php';
+        $process = proc_open([
+            \PHP_BINARY,
+            '-n',
+            '-d',
+            'disable_functions=' . $functions,
+            __DIR__ . '/Stub/disabled-metadata-functions.php',
+            $autoload,
+            $file,
+            $operation,
+            explode(',', $functions)[0],
+        ], [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ], $pipes);
+        self::assertIsResource($process);
+        fclose($pipes[0]);
+        $output = stream_get_contents($pipes[1]);
+        $errors = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        self::assertSame(0, proc_close($process), $errors);
+
+        return json_decode($output, true, 512, \JSON_THROW_ON_ERROR);
     }
 
     /**

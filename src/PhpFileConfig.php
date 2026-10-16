@@ -34,6 +34,8 @@ final class PhpFileConfig implements ConfigInterface
 {
     use LazyLoadConfigTrait;
 
+    private ?string $absoluteFile = null;
+
     /**
      * Constructs a PhpFileConfig instance.
      *
@@ -255,11 +257,17 @@ final class PhpFileConfig implements ConfigInterface
             }
 
             if (null !== $existingMetadata && '\\' !== \DIRECTORY_SEPARATOR) {
+                if (! \function_exists('filegroup')) {
+                    throw InvalidArgumentException::forUnwritableFile($this->file);
+                }
+
                 $temporaryGroup = @filegroup($tmpFile);
-                if (false === $temporaryGroup || ($temporaryGroup !== $existingMetadata['gid'] && ! @chgrp(
-                    $tmpFile,
-                    $existingMetadata['gid']
-                ))) {
+                if (false === $temporaryGroup) {
+                    throw InvalidArgumentException::forUnwritableFile($this->file);
+                }
+
+                if ($temporaryGroup !== $existingMetadata['gid']
+                    && (! \function_exists('chgrp') || ! @chgrp($tmpFile, $existingMetadata['gid']))) {
                     throw InvalidArgumentException::forUnwritableFile($this->file);
                 }
             }
@@ -278,13 +286,13 @@ final class PhpFileConfig implements ConfigInterface
     }
 
     /**
-     * Resolves the target file path, resolving symlinks to their canonical target.
+     * Anchors the input location on first use and resolves its current symlink target.
      *
      * @return string
      */
     private function resolveTargetFile(): string
     {
-        $file = $this->absolutePath($this->file);
+        $file = $this->absoluteFile ??= $this->absolutePath($this->file);
         $visited = [];
 
         for ($depth = 0; $depth < 64; ++$depth) {
