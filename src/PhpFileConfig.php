@@ -333,6 +333,15 @@ final class PhpFileConfig implements ConfigInterface
             return $path;
         }
 
+        if ('\\' === \DIRECTORY_SEPARATOR && 1 === preg_match('~^[a-zA-Z]:~', $path)) {
+            $resolved = realpath($path);
+            if (false === $resolved) {
+                throw InvalidArgumentException::forUnreadableFile($this->file);
+            }
+
+            return $resolved;
+        }
+
         $directory ??= getcwd();
         if (false === $directory) {
             throw InvalidArgumentException::forUnreadableFile($this->file);

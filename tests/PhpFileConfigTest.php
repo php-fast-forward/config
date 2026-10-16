@@ -924,6 +924,64 @@ final class PhpFileConfigTest extends TestCase
     }
 
     /**
+     * @return void
+     */
+    #[Test]
+    public function testWindowsDriveRelativeExistingFileUsesNativeResolution(): void
+    {
+        if ('\\' !== \DIRECTORY_SEPARATOR) {
+            self::markTestSkipped('Windows drive-relative paths require Windows.');
+        }
+
+        mkdir($this->tempDirectory);
+        $file = $this->tempDirectory . '/settings.php';
+        file_put_contents($file, '<?php return ["initial" => true];');
+        $workingDirectory = getcwd();
+
+        try {
+            chdir($this->tempDirectory);
+            $driveRelative = substr(getcwd(), 0, 2) . 'settings.php';
+            $config = new PhpFileConfig($driveRelative, persistent: true);
+            $config->set('saved', true);
+
+            self::assertSame([
+                'initial' => true,
+                'saved' => true,
+            ], require $file);
+        } finally {
+            chdir($workingDirectory);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testUnresolvedWindowsDriveRelativePathFailsBeforeCreatingFiles(): void
+    {
+        if ('\\' !== \DIRECTORY_SEPARATOR) {
+            self::markTestSkipped('Windows drive-relative paths require Windows.');
+        }
+
+        mkdir($this->tempDirectory);
+        $workingDirectory = getcwd();
+
+        try {
+            chdir($this->tempDirectory);
+            $driveRelative = substr(getcwd(), 0, 2) . 'missing.php';
+
+            try {
+                (new PhpFileConfig($driveRelative, persistent: true, defaultConfig: []))->set('saved', true);
+                self::fail('An unresolved drive-relative path must not create files.');
+            } catch (InvalidArgumentException) {
+                self::assertCount(0, iterator_to_array(new FilesystemIterator($this->tempDirectory)));
+            }
+        } finally {
+            chdir($workingDirectory);
+        }
+    }
+
+    /**
      * @param string $directory
      *
      * @return void

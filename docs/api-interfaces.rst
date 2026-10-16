@@ -98,6 +98,11 @@ raises ``InvalidArgumentException`` and leaves the original file intact. New fil
 ``0666 & ~umask()`` and the filesystem's default creation group. Windows does not attempt POSIX
 group reassignment; its native permission behavior applies.
 
+On Windows, drive-relative paths such as ``C:settings.php`` use native resolution
+for existing targets. If such a path cannot be resolved, it raises
+``InvalidArgumentException`` before creating directories, locks, or files. Use a
+fully qualified path such as ``C:\\app\\settings.php`` when creating a new target.
+
 LaminasConfigAggregatorConfig
 -----------------------------
 
