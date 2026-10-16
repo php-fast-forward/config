@@ -134,4 +134,6 @@ if (null !== $prefix) {
     }
 }
 
+$result['directory_checks'] = (require __DIR__ . '/dangling-directories.php')($directory);
+
 echo json_encode($result, \JSON_THROW_ON_ERROR);

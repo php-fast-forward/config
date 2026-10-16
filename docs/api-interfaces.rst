@@ -105,11 +105,14 @@ Important constructor options:
 
 Relative inputs are anchored to an absolute location on first use, independently of PHP's
 ``include_path``. Later working-directory changes do not move the instance to another file.
+Only a valid URI scheme at the start of the input selects a stream path; a relative filesystem
+path such as ``nested/file://settings.php`` is still anchored to its initial directory.
 Each persistent mutation refreshes PHP's path caches before following the current symlink
 chain from that location, including directory links changed by another process. It uses the
 same resolved target for its lock, fresh read, and atomic replacement. Symlink chains are
-followed to the final target, including a missing target created from ``defaultConfig``;
-cyclic or excessively long chains raise
+followed to the final target, including a missing target created from ``defaultConfig``.
+This also applies when a parent-directory link points to a directory that does not yet exist.
+Cyclic or excessively long chains raise
 ``FastForward\\Config\\Exception\\InvalidArgumentException`` before any link is replaced.
 On POSIX, symlink targets are literal filesystem paths: ``://`` in a relative target does
 not select a stream wrapper. Unavailable PHP functions required to resolve a path also raise

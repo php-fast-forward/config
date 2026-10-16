@@ -817,6 +817,70 @@ final class PhpFileConfigTest extends TestCase
     /**
      * @return iterable<string, array{string}>
      */
+    public static function relativePathsContainingUriSyntax(): iterable
+    {
+        yield 'nested scheme-like component' => ['nested/file://settings.php'];
+        yield 'scheme cannot begin with a digit' => ['9file://settings.php'];
+        yield 'scheme cannot contain an underscore' => ['file_name://settings.php'];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('relativePathsContainingUriSyntax')]
+    public function testRelativePathsContainingUriSyntaxKeepTheirInitialLocation(string $relative): void
+    {
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            self::markTestSkipped('POSIX permits colon characters in filesystem path components.');
+        }
+
+        $source = $this->tempDirectory . '/source';
+        $other = $this->tempDirectory . '/other';
+        $selected = $source . '/' . $relative;
+        $competing = $other . '/' . $relative;
+        mkdir(\dirname($selected), 0o777, true);
+        mkdir(\dirname($competing), 0o777, true);
+        file_put_contents($selected, '<?php chdir(' . var_export($other, true) . '); return ["initial" => true];');
+        $competingContent = '<?php return ["competing" => true];';
+        file_put_contents($competing, $competingContent);
+        $workingDirectory = getcwd();
+
+        try {
+            chdir($source);
+            $config = new PhpFileConfig($relative, persistent: true);
+            self::assertTrue($config->get('initial'));
+            self::assertSame(realpath($other), getcwd());
+            $config->set('saved', true);
+            $config->remove('initial');
+
+            self::assertSame([
+                'saved' => true,
+            ], require $selected);
+            self::assertSame($competingContent, file_get_contents($competing));
+            self::assertFileExists(\dirname($selected) . '/.settings.php.lock');
+            self::assertFileDoesNotExist(\dirname($competing) . '/.settings.php.lock');
+        } finally {
+            chdir($workingDirectory);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testExplicitLeadingFileStreamRemainsReadable(): void
+    {
+        file_put_contents($this->tempFile, '<?php return ["initial" => true];');
+        $path = str_replace('\\', '/', $this->tempFile);
+        $input = 'file://' . (str_starts_with($path, '/') ? '' : '/') . $path;
+
+        self::assertTrue((new PhpFileConfig($input))->get('initial'));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
     public static function externallyRetargetedDirectories(): iterable
     {
         yield 'direct parent' => [''];
@@ -941,6 +1005,126 @@ final class PhpFileConfigTest extends TestCase
             'saved' => true,
             'other' => true,
         ], require $targetFile);
+    }
+
+    /**
+     * @return iterable<string, array{bool, int, string}>
+     */
+    public static function danglingDirectorySymlinkChains(): iterable
+    {
+        yield 'single relative parent link' => [false, 1, ''];
+        yield 'relative ancestor chain' => [false, 3, '/nested'];
+        yield 'absolute ancestor chain' => [true, 3, '/nested'];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('danglingDirectorySymlinkChains')]
+    public function testPersistentMutationCreatesTargetsThroughDanglingDirectorySymlinks(
+        bool $absolute,
+        int $length,
+        string $suffix
+    ): void {
+        mkdir($this->tempDirectory . '/missing', 0o777, true);
+        $targets = [];
+        for ($index = $length - 1; $index >= 0; --$index) {
+            $target = $index + 1 < $length ? 'link' . ($index + 1) : 'missing';
+            $link = $this->tempDirectory . '/link' . $index;
+            $this->createSymlink($absolute ? $this->tempDirectory . '/' . $target : $target, $link);
+            $targets[$index] = readlink($link);
+        }
+
+        rmdir($this->tempDirectory . '/missing');
+        $targetFile = $this->tempDirectory . '/missing' . $suffix . '/settings.php';
+        $config = new PhpFileConfig($this->tempDirectory . '/link0' . $suffix . '/settings.php', persistent: true, defaultConfig: [
+            'initial' => true,
+        ]);
+        self::assertTrue($config->get('initial'));
+        self::assertDirectoryDoesNotExist($this->tempDirectory . '/missing');
+        $config->set('saved', true);
+        (new PhpFileConfig($targetFile, persistent: true))->set('other', true);
+        $config->remove('initial');
+
+        self::assertSame([
+            'saved' => true,
+            'other' => true,
+        ], require $targetFile);
+        self::assertFileExists(\dirname($targetFile) . '/.settings.php.lock');
+        foreach ($targets as $index => $target) {
+            $link = $this->tempDirectory . '/link' . $index;
+            self::assertTrue(is_link($link));
+            self::assertSame($target, readlink($link));
+            self::assertFileDoesNotExist($this->tempDirectory . '/.link' . $index . '.lock');
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testRepeatedDirectoryAliasDoesNotBecomeASymlinkCycle(): void
+    {
+        mkdir($this->tempDirectory);
+        $link = $this->tempDirectory . '/alias';
+        $this->createSymlink('.', $link);
+        $target = readlink($link);
+
+        (new PhpFileConfig($link . '/alias/missing/settings.php', persistent: true, defaultConfig: []))
+            ->set('saved', true);
+
+        self::assertSame([
+            'saved' => true,
+        ], require $this->tempDirectory . '/missing/settings.php');
+        self::assertTrue(is_link($link));
+        self::assertSame($target, readlink($link));
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testDirectorySymlinksAreResolvedBeforeParentPathSegments(): void
+    {
+        mkdir($this->tempDirectory . '/deep/subdir', 0o777, true);
+        $link = $this->tempDirectory . '/alias';
+        $this->createSymlink($this->tempDirectory . '/deep/subdir', $link);
+        $target = readlink($link);
+
+        (new PhpFileConfig($link . '/../missing/settings.php', persistent: true, defaultConfig: []))
+            ->set('saved', true);
+
+        self::assertSame([
+            'saved' => true,
+        ], require $this->tempDirectory . '/deep/missing/settings.php');
+        self::assertDirectoryDoesNotExist($this->tempDirectory . '/missing');
+        self::assertTrue(is_link($link));
+        self::assertSame($target, readlink($link));
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testCyclicDirectorySymlinkChainFailsBeforeCreatingAnyFile(): void
+    {
+        mkdir($this->tempDirectory);
+        $first = $this->tempDirectory . '/first';
+        $second = $this->tempDirectory . '/second';
+        $this->createSymlink('second', $first);
+        $this->createSymlink('first', $second);
+
+        try {
+            (new PhpFileConfig($first . '/settings.php', persistent: true, defaultConfig: []))->set('saved', true);
+            self::fail('Cyclic directory links must be rejected before persistence.');
+        } catch (InvalidArgumentException) {
+            self::assertTrue(is_link($first));
+            self::assertTrue(is_link($second));
+            self::assertSame('second', readlink($first));
+            self::assertSame('first', readlink($second));
+            self::assertCount(2, iterator_to_array(new FilesystemIterator($this->tempDirectory)));
+        }
     }
 
     /**

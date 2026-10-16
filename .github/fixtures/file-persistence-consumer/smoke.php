@@ -80,6 +80,10 @@ try {
                 check($case['passed'], 'A drive-relative symlink froze its ' . $kind . ' target.');
             }
         }
+
+        foreach ($native['directory_checks'] as $case => $passed) {
+            check($passed, 'A directory symlink case failed: ' . $case);
+        }
     }
 
     $qualified = $roots[0] . '/qualified.php';
@@ -93,6 +97,10 @@ try {
         'saved' => true,
     ] === (require $qualified), 'A fully qualified path changed drives.');
     echo 'passed: fully qualified path across a drive change' . \PHP_EOL;
+
+    $stream = 'file:///' . str_replace('\\', '/', $qualified);
+    check(true === (new PhpFileConfig($stream))->get('saved'), 'An explicit leading file stream was not preserved.');
+    echo 'passed: explicit leading file stream' . \PHP_EOL;
 
     $device = '\\\\?\\' . str_replace('/', '\\', $qualified);
     chdir($roots[1]);

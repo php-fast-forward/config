@@ -305,31 +305,49 @@ final class PhpFileConfig implements ConfigInterface
 
         clearstatcache(true);
         $file = $this->absoluteFile ??= $this->absolutePath($this->file);
+        if (1 === preg_match('~^[a-zA-Z][a-zA-Z0-9+.-]*://~', $file)) {
+            return $file;
+        }
+
         $visited = [];
 
         for ($depth = 0; $depth < 64; ++$depth) {
-            $directory = realpath(\dirname($file));
-            if (false !== $directory) {
-                $file = $directory . \DIRECTORY_SEPARATOR . basename($file);
+            $link = $file;
+            $suffix = '';
+            while (true) {
+                $directory = realpath(\dirname($link));
+                if (false !== $directory) {
+                    $link = $directory . \DIRECTORY_SEPARATOR . basename($link);
+                }
+
+                if (is_link($link)) {
+                    break;
+                }
+
+                $parent = \dirname($link);
+                if (false !== $directory || $parent === $link) {
+                    $file = $link . $suffix;
+                    $resolved = realpath($file);
+
+                    return false !== $resolved ? $resolved : $file;
+                }
+
+                $suffix = \DIRECTORY_SEPARATOR . basename($link) . $suffix;
+                $link = $parent;
             }
 
-            if (! is_link($file)) {
-                $resolved = realpath($file);
-
-                return false !== $resolved ? $resolved : $file;
-            }
-
+            $file = $link . $suffix;
             if (isset($visited[$file]) || ! \function_exists('readlink')) {
                 throw InvalidArgumentException::forUnreadableFile($this->file);
             }
 
             $visited[$file] = true;
-            $target = @readlink($file);
+            $target = @readlink($link);
             if (false === $target) {
                 throw InvalidArgumentException::forUnreadableFile($this->file);
             }
 
-            $file = $this->absolutePath($target, \dirname($file));
+            $file = $this->absolutePath($target, \dirname($link)) . $suffix;
         }
 
         throw InvalidArgumentException::forUnreadableFile($this->file);
@@ -358,7 +376,10 @@ final class PhpFileConfig implements ConfigInterface
             return $root[0] . $path;
         }
 
-        if (str_starts_with($path, '/') || (null === $directory && str_contains($path, '://'))
+        if (str_starts_with($path, '/') || (null === $directory && 1 === preg_match(
+            '~^[a-zA-Z][a-zA-Z0-9+.-]*://~',
+            $path
+        ))
             || ('\\' === \DIRECTORY_SEPARATOR && (str_starts_with($path, '\\') || 1 === preg_match(
                 '~^[a-zA-Z]:[\\\\/]~',
                 $path
