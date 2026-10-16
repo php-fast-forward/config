@@ -17,3 +17,21 @@ jobs:
     with:
       publish-required-statuses: true
     secrets: inherit
+
+  runtime-only:
+    name: Runtime-only PHP 8.3
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+      - name: Install runtime dependencies without development polyfills
+        working-directory: tests/Runtime
+        run: composer install --no-dev --no-plugins --no-scripts --no-interaction --prefer-dist --no-progress
+      - name: Exercise directory and container behavior without multibyte functions
+        run: php -n -d disable_functions=mb_rtrim,mb_substr,mb_strlen tests/Runtime/smoke.php
