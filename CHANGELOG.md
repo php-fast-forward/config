@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Give each CachedConfig wrapper an isolated, portable PSR-16 default key whose entries expire after 300 seconds. Cross-instance or cross-request reuse now requires an explicit cacheKey; old class-name entries are not reused.
+
 ### Removed
 
 - Remove the deprecated misspelled LamiasConfigAggregatorConfig class without an autoload alias fallback. This is an intentional compatibility break: replace imports, type declarations, and instantiations with LaminasConfigAggregatorConfig.
@@ -14,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Normalize each provider or PHP file's dot and slash paths before Laminas merges sources, preserving later-source precedence, list order, merge instructions, lazy loading, and file-cache behavior.
+- Resolve valid source data on cache misses, evictions, non-array entries, and declined initial writes without a has()/get() race or mandatory cache readback, while preserving lazy cache hits.
+- Report failed persistent cache mutations with RuntimeException when the backend returns false, retaining the local mutation for application recovery.
 - Resolve PSR-11 container identifiers consistently, require the documented config. prefix, and report empty or unknown configuration identifiers as container not-found errors.
 - Use core string functions for directory paths and container prefixes so runtime-only PHP 8.3 consumers do not require undeclared multibyte functions or PHP 8.4 polyfills.
 - Document and test the explicit Laminas config_cache_enabled flag, writable parent requirements, and existing-file reuse for provider and directory file-cache examples.

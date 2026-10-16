@@ -115,7 +115,9 @@ Important constructor options:
 - ``cache``: the PSR-16 cache backend.
 - ``defaultConfig``: the wrapped config source.
 - ``persistent``: whether ``set()`` and ``remove()`` should write back to the cache backend.
-- ``cacheKey``: optional custom cache key.
+- ``cacheKey``: optional application-owned key for cross-instance reuse with the backend's default lifetime. Without one, each wrapper uses its own portable PSR-16 key and every write expires after 300 seconds.
+
+Cache misses and non-array entries fall back to the source without requiring a successful cache write or readback. Cache hits leave the source unresolved. Persistent mutations raise ``RuntimeException`` when the backend returns ``false`` from ``set()``; the local mutation is retained. See :doc:`advanced/caching` for migration and invalidation details.
 
 ConfigContainer
 ---------------
