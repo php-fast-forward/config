@@ -86,15 +86,18 @@ Important constructor options:
 - ``persistent``: whether ``set()`` and ``remove()`` should write changes back to the PHP file.
 - ``defaultConfig``: optional default configuration used when the file does not yet exist.
 
-Reads resolve the supplied path against the current working directory, independently of PHP's
-``include_path``. A persistent mutation uses the same resolved target for its lock, fresh read,
-and atomic replacement. Symlink chains are followed to the final target, including a missing
-target created from ``defaultConfig``; cyclic or excessively long chains raise
+Relative inputs are anchored to an absolute location on first use, independently of PHP's
+``include_path``. Later working-directory changes do not move the instance to another file.
+Each persistent mutation follows the current symlink chain from that location and uses the
+same resolved target for its lock, fresh read, and atomic replacement. Symlink chains are
+followed to the final target, including a missing target created from ``defaultConfig``;
+cyclic or excessively long chains raise
 ``FastForward\\Config\\Exception\\InvalidArgumentException`` before any link is replaced.
 
 Atomic replacements preserve existing permission bits and, on POSIX systems, the existing
-file's group. If the group or permissions cannot be applied to the temporary file, the mutation
-raises ``InvalidArgumentException`` and leaves the original file intact. New files use
+file's group. If the group or permissions cannot be applied to the temporary file, including
+when required group functions are disabled, the mutation raises ``InvalidArgumentException``
+and leaves the original file intact. New files use
 ``0666 & ~umask()`` and the filesystem's default creation group. Windows does not attempt POSIX
 group reassignment; its native permission behavior applies.
 
