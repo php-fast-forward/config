@@ -22,14 +22,19 @@ namespace FastForward\Config;
  * Class RecursiveDirectoryConfig.
  *
  * Extends DirectoryConfig to support recursive loading of configuration files from a root directory.
- * This class SHALL match both top-level and nested PHP files using a recursive glob pattern.
+ * This class SHALL match PHP files at every depth using the parent directory traversal.
  */
 final class RecursiveDirectoryConfig extends DirectoryConfig
 {
     use LazyLoadConfigTrait;
 
     /**
-     * @var string Recursive pattern to match all *.php files in all nested directories.
+     * @var string filename pattern applied independently in every directory
      */
-    protected const PATTERN = '{*,**/*}.php';
+    protected const PATTERN = '*.php';
+
+    /**
+     * @var bool whether child directories should be discovered
+     */
+    protected const RECURSIVE = true;
 }

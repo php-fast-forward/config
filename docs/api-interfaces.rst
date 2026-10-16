@@ -71,7 +71,7 @@ DirectoryConfig And RecursiveDirectoryConfig
 These classes load PHP files from disk:
 
 - ``DirectoryConfig`` scans only the top level of the target directory.
-- ``RecursiveDirectoryConfig`` also scans nested subdirectories.
+- ``RecursiveDirectoryConfig`` scans nested subdirectories at every depth.
 - Both validate that the directory exists and is readable.
 - Both support an optional cache file path through Laminas ConfigAggregator.
 
@@ -79,6 +79,18 @@ Generating that file also requires a truthy ``config_cache_enabled`` entry in a
 loaded PHP configuration array and an existing, writable parent directory. Keep
 the cache outside the scanned source directory. An existing cache file is reused
 before loading source files. See :doc:`advanced/caching`.
+
+Directory paths are treated literally, including characters such as brackets and braces. The protected ``PATTERN`` constant controls filename selection; overriding it continues to use the existing glob and brace-order semantics.
+
+Selected files are included through their resolved absolute paths. Relative directory roots therefore cannot be redirected through PHP's ``include_path`` or configuration files that change the working directory during loading.
+
+Discovery stays lazy. Root files are loaded before files one directory below, then files two directories below, and so on. Within each level, directories are ordered by their paths and the filename pattern determines the order inside each directory. The default patterns therefore produce deterministic path ordering while preserving later-value overrides and sequential-list concatenation.
+
+Child directory symlinks are not followed, so aliases and recursive cycles do not duplicate traversal. Hidden child directories are skipped. File symlinks may be loaded, but every resolved file is included only once; its first discovered path determines its merge position. A root directory explicitly supplied by the caller may itself be a symlink.
+
+Recursive traversal skips child directories that are unreadable or disappear before they can be opened. Accessible configuration still loads. Root read failures and unrelated filesystem or configuration-file errors remain visible.
+
+Existing generated cache files bypass discovery. Invalidate or rebuild them after upgrading if they were created while deeper configuration files were omitted.
 
 PhpFileConfig
 -------------
