@@ -124,7 +124,7 @@ final readonly class ConfigContainer implements ContainerInterface
 
         $key = substr($id, \strlen($prefix));
 
-        return '' !== trim($key, './') ? $key : null;
+        return '' !== $key ? $key : null;
     }
 
     /**

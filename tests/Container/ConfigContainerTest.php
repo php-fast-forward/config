@@ -194,4 +194,22 @@ final class ConfigContainerTest extends TestCase
         self::assertTrue($container->has('config.应用.nullable'));
         self::assertNull($container->get('config.应用.nullable'));
     }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testNonemptyPathsPreserveEmptySegments(): void
+    {
+        $container = new ConfigContainer(new ArrayConfig([
+            '' => [
+                '' => 'empty-segments',
+            ],
+        ]));
+
+        self::assertTrue($container->has('config..'));
+        self::assertSame('empty-segments', $container->get('config..'));
+        self::assertTrue($container->has('config./'));
+        self::assertSame('empty-segments', $container->get('config./'));
+    }
 }
