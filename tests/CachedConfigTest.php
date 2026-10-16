@@ -289,11 +289,14 @@ final class CachedConfigTest extends TestCase
      * @return void
      */
     #[Test]
-    public function testExplicitInvalidKeyIsRejectedByBackend(): void
+    public function testBackendInvalidKeyExceptionIsPropagated(): void
     {
         $source = $this->createMock(ConfigInterface::class);
         $source->expects(self::never())->method('toArray');
-        $config = new CachedConfig(new Psr16Cache(new ArrayAdapter()), $source, cacheKey: 'invalid:key');
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->expects(self::once())->method('get')->with('invalid:key')
+            ->willThrowException(new InvalidArgumentException('Invalid cache key.'));
+        $config = new CachedConfig($cache, $source, cacheKey: 'invalid:key');
 
         $this->expectException(InvalidArgumentException::class);
         $config->toArray();
