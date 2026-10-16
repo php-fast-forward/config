@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace FastForward\Config\Tests;
 
+use Closure;
 use FastForward\Config\AggregateConfig;
 use FastForward\Config\ArrayConfig;
 use FastForward\Config\CachedConfig;
@@ -85,6 +86,68 @@ final class CachedConfigTest extends TestCase
         self::assertCount(2, $keys);
         foreach ($keys as $key) {
             self::assertMatchesRegularExpression('/\A[A-Za-z0-9_.]{1,64}\z/', $key);
+        }
+    }
+
+    /**
+     * @param string $write
+     * @param string|null $cacheKey
+     * @param int $backendLifetime
+     * @param int|null $expectedLifetime
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('cacheWriteLifetimes')]
+    public function testCacheWritesPreserveTheExpectedLifetime(
+        string $write,
+        ?string $cacheKey,
+        int $backendLifetime,
+        ?int $expectedLifetime,
+    ): void {
+        [$cache, $advanceClock] = $this->createTimedCache($backendLifetime);
+        $source = new ArrayConfig([
+            'app' => 'source',
+        ]);
+        $config = new CachedConfig($cache, $source, persistent: true, cacheKey: $cacheKey);
+        $expected = $source->toArray();
+
+        if ('initial' === $write) {
+            self::assertSame($expected, $config()->toArray());
+        } else {
+            self::assertSame('source', $config->get('app'));
+            $advanceClock(299);
+            $this->mutate($config, $write);
+            $expected = 'set' === $write ? [
+                'app' => 'after',
+            ] : [];
+        }
+
+        $source->set('app', 'fresh source');
+        if (null === $expectedLifetime) {
+            $advanceClock(86_400);
+            self::assertSame($expected, $config()->toArray());
+
+            return;
+        }
+
+        $advanceClock($expectedLifetime - 1);
+        self::assertSame($expected, $config()->toArray());
+        $advanceClock(1);
+        self::assertSame([
+            'app' => 'fresh source',
+        ], $config()->toArray());
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function cacheWriteLifetimes(): iterable
+    {
+        foreach (['initial', 'set', 'remove'] as $write) {
+            yield $write . ' with a generated key' => [$write, null, 0, 300];
+            yield $write . ' with an explicit key and backend expiration' => [$write, 'app-config', 600, 600];
+            yield $write . ' with an explicit key and unlimited backend' => [$write, 'app-config', 0, null];
         }
     }
 
@@ -387,6 +450,57 @@ final class CachedConfigTest extends TestCase
                 'app' => 'after',
             ]];
         yield 'remove' => ['remove', []];
+    }
+
+    /**
+     * Creates an in-memory PSR-16 test double whose clock advances without sleeping.
+     *
+     * @param int $defaultLifetime zero means the backend keeps entries indefinitely
+     *
+     * @return array{CacheInterface, Closure(int): void}
+     */
+    private function createTimedCache(int $defaultLifetime): array
+    {
+        $now = 0;
+        $entries = [];
+        $cache = self::createStub(CacheInterface::class);
+        $cache->method('get')
+            ->willReturnCallback(
+                static function (string $key, mixed $default = null) use (&$now, &$entries): mixed {
+                    if (! isset($entries[$key])) {
+                        return $default;
+                    }
+
+                    [$value, $expiresAt] = $entries[$key];
+                    if (null !== $expiresAt && $expiresAt <= $now) {
+                        unset($entries[$key]);
+
+                        return $default;
+                    }
+
+                    return $value;
+                },
+            );
+        $cache->method('set')
+            ->willReturnCallback(
+                static function (string $key, mixed $value, ?int $ttl = null) use (
+                    &$now,
+                    &$entries,
+                    $defaultLifetime
+                ): bool {
+                    $lifetime = $ttl ?? $defaultLifetime;
+                    $expiresAt = null === $ttl && 0 === $defaultLifetime ? null : $now + $lifetime;
+                    $entries[$key] = [$value, $expiresAt];
+
+                    return true;
+                },
+            );
+
+        $advanceClock = static function (int $seconds) use (&$now): void {
+            $now += $seconds;
+        };
+
+        return [$cache, $advanceClock];
     }
 
     /**

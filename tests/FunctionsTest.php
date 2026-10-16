@@ -110,7 +110,7 @@ final class FunctionsTest extends TestCase
         ];
 
         $cache->has(Argument::type('string'))->shouldNotBeCalled();
-        $cache->set(Argument::type('string'), $data)->willReturn(true)->shouldBeCalledOnce();
+        $cache->set(Argument::type('string'), $data, 300)->willReturn(true)->shouldBeCalledOnce();
         $cache->get(Argument::type('string'))->willReturn(null);
 
         $config = configCache($cache->reveal(), $data);

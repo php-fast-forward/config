@@ -36,7 +36,9 @@ Default Keys And Source Isolation
 
 Without an explicit ``cacheKey``, each ``CachedConfig`` wrapper generates its own random key using only portable PSR-16 characters and fewer than 64 characters. The key stays the same for that wrapper's lifetime. Separate wrappers, including separate calls to ``configCache()``, use isolated entries even when their sources have the same PHP class.
 
-Default keys are not stable across wrapper reconstruction or application requests. This isolation avoids inspecting, executing, or serializing an arbitrary lazy source merely to identify it. To reuse a cached configuration between instances, workers, or requests, instantiate ``CachedConfig`` with the same explicit application-owned key, as shown below. Prefer an explicit key in long-lived shared pools: default entries are not reused after their wrapper is discarded, and their retention follows the backend's default lifetime.
+Default keys are not stable across wrapper reconstruction or application requests. This isolation avoids inspecting, executing, or serializing an arbitrary lazy source merely to identify it. To reuse a cached configuration between instances, workers, or requests, instantiate ``CachedConfig`` with the same explicit application-owned key, as shown below.
+
+Entries written with a generated default key receive a TTL of 300 seconds, including the initial publication and persistent ``set()`` or ``remove()`` writes. Each write starts a new 300-second lifetime. Direct invocation can reuse an unexpired entry and falls back to the source after expiration; ordinary reads continue using the wrapper's lazily resolved in-memory configuration. This expiration limits retention of default entries after their wrapper is discarded. Explicit ``cacheKey`` values keep the backend's default lifetime by passing a null TTL, including unlimited retention when configured by the backend.
 
 Using A Custom Cache Key Or Persistent Writes
 ---------------------------------------------

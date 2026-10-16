@@ -35,6 +35,8 @@ final class CachedConfig implements ConfigInterface
 
     private readonly string $cacheKey;
 
+    private readonly ?int $cacheTtl;
+
     /**
      * Constructs a CachedConfig wrapper.
      *
@@ -44,7 +46,7 @@ final class CachedConfig implements ConfigInterface
      * @param CacheInterface $cache the cache implementation used for storing configuration data
      * @param ConfigInterface $defaultConfig the configuration source to be cached
      * @param bool $persistent whether the cache should be persistent or not
-     * @param string|null $cacheKey a shared cache key, or null for an isolated key unique to this wrapper
+     * @param string|null $cacheKey a shared cache key, or null for an isolated key whose entries expire after 300 seconds
      */
     public function __construct(
         private readonly CacheInterface $cache,
@@ -53,6 +55,7 @@ final class CachedConfig implements ConfigInterface
         ?string $cacheKey = null,
     ) {
         $this->cacheKey = $cacheKey ?? 'ff_config_' . bin2hex(random_bytes(16));
+        $this->cacheTtl = null === $cacheKey ? 300 : null;
     }
 
     /**
@@ -71,7 +74,7 @@ final class CachedConfig implements ConfigInterface
         $data = $this->cache->get($this->cacheKey);
         if (! \is_array($data)) {
             $data = $this->defaultConfig->toArray();
-            $this->cache->set($this->cacheKey, $data);
+            $this->cache->set($this->cacheKey, $data, $this->cacheTtl);
         }
 
         return new ArrayConfig($data);
@@ -129,7 +132,7 @@ final class CachedConfig implements ConfigInterface
      */
     private function persistConfig(ConfigInterface $config): void
     {
-        if ($this->persistent && ! $this->cache->set($this->cacheKey, $config->toArray())) {
+        if ($this->persistent && ! $this->cache->set($this->cacheKey, $config->toArray(), $this->cacheTtl)) {
             throw new RuntimeException('Unable to persist configuration to the cache.');
         }
     }

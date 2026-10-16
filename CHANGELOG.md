@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Give each CachedConfig wrapper an isolated, portable PSR-16 default key. Cross-instance or cross-request reuse now requires an explicit cacheKey; old class-name entries are not reused.
+- Give each CachedConfig wrapper an isolated, portable PSR-16 default key whose entries expire after 300 seconds. Cross-instance or cross-request reuse now requires an explicit cacheKey; old class-name entries are not reused.
 
 ### Removed
 
