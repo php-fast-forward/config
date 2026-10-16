@@ -20,10 +20,10 @@ Factory Functions
      - Good for application-level cache integration.
    * - ``configDir(string $rootDirectory, bool $recursive = false, ?string $cachedConfigFile = null): ConfigInterface``
      - Loads PHP files from a directory.
-     - Non-recursive by default.
+     - Non-recursive by default. File-cache generation requires a truthy ``config_cache_enabled`` entry and a writable, existing cache parent.
    * - ``configProvider(iterable $providers, ?string $cachedConfigFile = null): ConfigInterface``
      - Aggregates provider classes with Laminas ConfigAggregator.
-     - Useful for modular or package-driven configuration.
+     - File-cache generation requires a truthy ``config_cache_enabled`` entry; an existing cache file is read before providers run.
 
 Related Pages
 -------------

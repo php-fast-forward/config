@@ -44,7 +44,8 @@ class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInt
      *
      * This constructor SHALL validate the specified directory, and initialize
      * the Laminas config aggregator with a PHP file provider using the defined pattern.
-     * If a cache file is provided, it SHALL be used to store the aggregated configuration.
+     * An existing cache file SHALL be reused when provided.
+     * Generating a cache file additionally requires a truthy config_cache_enabled entry.
      *
      * @param string $directory the directory path from which to load configuration files
      * @param string|null $cachedConfigFile optional path to a cache file for the aggregated configuration

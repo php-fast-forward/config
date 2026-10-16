@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Load, lock, and atomically replace the same resolved PhpFileConfig target, avoiding competing include_path files and anchoring relative inputs on first use across working-directory changes while following current symlink targets.
 - Follow dangling symlink chains to their final target during persistent mutations, preserving intermediate links and rejecting cyclic or unresolvable chains before replacement.
 - Preserve existing POSIX file groups and permission bits during atomic persistence, rejecting replacements with InvalidArgumentException when required metadata cannot be retained or its functions are disabled.
+- Document and test the explicit Laminas config_cache_enabled flag, writable parent requirements, and existing-file reuse for provider and directory file-cache examples.
 
 ## [1.6.0] - 2026-10-16
 
