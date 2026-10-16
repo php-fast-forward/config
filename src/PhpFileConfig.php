@@ -20,6 +20,7 @@ namespace FastForward\Config;
 
 use Brick\VarExporter\VarExporter;
 use FastForward\Config\Exception\InvalidArgumentException;
+use Throwable;
 
 /**
  * Class PhpFileConfig.
@@ -44,8 +45,7 @@ final class PhpFileConfig implements ConfigInterface
         private readonly string $file,
         private readonly bool $persistent = false,
         private readonly array|ConfigInterface|null $defaultConfig = null,
-    ) {
-    }
+    ) {}
 
     /**
      * Invokes the configuration and returns the configuration data.
@@ -78,7 +78,8 @@ final class PhpFileConfig implements ConfigInterface
     public function set(array|ConfigInterface|string $key, mixed $value = null): void
     {
         if (! $this->persistent) {
-            $this->getConfig()->set($key, $value);
+            $this->getConfig()
+                ->set($key, $value);
 
             return;
         }
@@ -102,7 +103,8 @@ final class PhpFileConfig implements ConfigInterface
     public function remove(string $key): void
     {
         if (! $this->persistent) {
-            $this->getConfig()->remove($key);
+            $this->getConfig()
+                ->remove($key);
 
             return;
         }
@@ -115,14 +117,18 @@ final class PhpFileConfig implements ConfigInterface
     /**
      * Loads the configuration from the file or default configuration.
      *
+     * @param string|null $targetFile resolved target shared with a persistent mutation
+     *
      * @return ConfigInterface
      *
      * @throws InvalidArgumentException if the file is unreadable or does not return an array
      */
-    private function loadConfig(): ConfigInterface
+    private function loadConfig(?string $targetFile = null): ConfigInterface
     {
-        if (! file_exists($this->file)) {
-            if ($this->defaultConfig !== null) {
+        $targetFile ??= $this->resolveTargetFile();
+
+        if (! file_exists($targetFile)) {
+            if (null !== $this->defaultConfig) {
                 $data = $this->defaultConfig instanceof ConfigInterface
                     ? $this->defaultConfig->toArray()
                     : $this->defaultConfig;
@@ -133,13 +139,11 @@ final class PhpFileConfig implements ConfigInterface
             throw InvalidArgumentException::forUnreadableFile($this->file);
         }
 
-        if (! is_file($this->file) || ! is_readable($this->file)) {
+        if (! is_file($targetFile) || ! is_readable($targetFile)) {
             throw InvalidArgumentException::forUnreadableFile($this->file);
         }
 
-        $data = (static function (string $file): mixed {
-            return require $file;
-        })($this->file);
+        $data = (static fn(string $file): mixed => require $file)($targetFile);
 
         if (! \is_array($data)) {
             throw InvalidArgumentException::forInvalidConfigFile($this->file);
@@ -163,7 +167,7 @@ final class PhpFileConfig implements ConfigInterface
         $dir        = \dirname($targetFile);
 
         if (! is_dir($dir)) {
-            if (! @mkdir($dir, 0777, true) && ! is_dir($dir)) {
+            if (! @mkdir($dir, 0o777, true) && ! is_dir($dir)) {
                 throw InvalidArgumentException::forUnwritableFile($this->file);
             }
         } elseif (! is_writable($dir)) {
@@ -174,7 +178,7 @@ final class PhpFileConfig implements ConfigInterface
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        $lockPath = $dir . '/.' . \basename($targetFile) . '.lock';
+        $lockPath = $dir . '/.' . basename($targetFile) . '.lock';
         $lockFp   = @fopen($lockPath, 'c+');
 
         if (false === $lockFp) {
@@ -187,7 +191,7 @@ final class PhpFileConfig implements ConfigInterface
             }
 
             try {
-                $config = $this->loadConfig();
+                $config = $this->loadConfig($targetFile);
                 $operation($config);
                 $this->dump($config->toArray(), $targetFile);
                 $this->config = $config;
@@ -215,7 +219,7 @@ final class PhpFileConfig implements ConfigInterface
         $dir = \dirname($targetFile);
 
         if (! is_dir($dir)) {
-            if (! @mkdir($dir, 0777, true) && ! is_dir($dir)) {
+            if (! @mkdir($dir, 0o777, true) && ! is_dir($dir)) {
                 throw InvalidArgumentException::forUnwritableFile($this->file);
             }
         } elseif (! is_writable($dir)) {
@@ -226,10 +230,15 @@ final class PhpFileConfig implements ConfigInterface
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
+        $existingMetadata = file_exists($targetFile) ? @stat($targetFile) : null;
+        if (false === $existingMetadata) {
+            throw InvalidArgumentException::forUnwritableFile($this->file);
+        }
+
         try {
             $exported = VarExporter::export($data);
-        } catch (\Throwable $e) {
-            throw new InvalidArgumentException($e->getMessage(), (int) $e->getCode(), $e);
+        } catch (Throwable $throwable) {
+            throw new InvalidArgumentException($throwable->getMessage(), (int) $throwable->getCode(), $throwable);
         }
 
         $content = "<?php\n\ndeclare(strict_types=1);\n\nreturn {$exported};\n";
@@ -239,19 +248,28 @@ final class PhpFileConfig implements ConfigInterface
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        $bytesWritten = @file_put_contents($tmpFile, $content, \LOCK_EX);
-        if ($bytesWritten !== \strlen($content)) {
-            @unlink($tmpFile);
-            throw InvalidArgumentException::forUnwritableFile($this->file);
-        }
+        try {
+            $bytesWritten = @file_put_contents($tmpFile, $content, \LOCK_EX);
+            if ($bytesWritten !== \strlen($content)) {
+                throw InvalidArgumentException::forUnwritableFile($this->file);
+            }
 
-        $existingPerms = file_exists($targetFile) ? @fileperms($targetFile) : false;
-        $mode          = false !== $existingPerms ? ($existingPerms & 0777) : (0666 & ~umask());
-        @chmod($tmpFile, $mode);
+            if (null !== $existingMetadata && '\\' !== \DIRECTORY_SEPARATOR) {
+                $temporaryGroup = @filegroup($tmpFile);
+                if (false === $temporaryGroup || ($temporaryGroup !== $existingMetadata['gid'] && ! @chgrp(
+                    $tmpFile,
+                    $existingMetadata['gid']
+                ))) {
+                    throw InvalidArgumentException::forUnwritableFile($this->file);
+                }
+            }
 
-        if (! @rename($tmpFile, $targetFile)) {
+            $mode = null !== $existingMetadata ? ($existingMetadata['mode'] & 0o777) : (0o666 & ~umask());
+            if (! @chmod($tmpFile, $mode) || ! @rename($tmpFile, $targetFile)) {
+                throw InvalidArgumentException::forUnwritableFile($this->file);
+            }
+        } finally {
             @unlink($tmpFile);
-            throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
         if (\function_exists('opcache_invalidate')) {
@@ -266,24 +284,60 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function resolveTargetFile(): string
     {
-        if (! is_link($this->file)) {
-            return $this->file;
+        $file = $this->absolutePath($this->file);
+        $visited = [];
+
+        for ($depth = 0; $depth < 64; ++$depth) {
+            $directory = realpath(\dirname($file));
+            if (false !== $directory) {
+                $file = $directory . \DIRECTORY_SEPARATOR . basename($file);
+            }
+
+            if (! is_link($file)) {
+                $resolved = realpath($file);
+
+                return false !== $resolved ? $resolved : $file;
+            }
+
+            if (isset($visited[$file])) {
+                throw InvalidArgumentException::forUnreadableFile($this->file);
+            }
+
+            $visited[$file] = true;
+            $target = @readlink($file);
+            if (false === $target) {
+                throw InvalidArgumentException::forUnreadableFile($this->file);
+            }
+
+            $file = $this->absolutePath($target, \dirname($file));
         }
 
-        $resolved = realpath($this->file);
-        if (false !== $resolved) {
-            return $resolved;
+        throw InvalidArgumentException::forUnreadableFile($this->file);
+    }
+
+    /**
+     * Resolves relative paths against their containing directory without using include_path.
+     *
+     * @param string $path the file or symlink target path
+     * @param string|null $directory the directory containing a relative symlink target
+     *
+     * @return string
+     */
+    private function absolutePath(string $path, ?string $directory = null): string
+    {
+        if (str_starts_with($path, '/') || str_contains($path, '://')
+            || ('\\' === \DIRECTORY_SEPARATOR && (str_starts_with($path, '\\') || 1 === preg_match(
+                '~^[a-zA-Z]:[\\\\/]~',
+                $path
+            )))) {
+            return $path;
         }
 
-        $target = readlink($this->file);
-        if (false === $target) {
-            return $this->file;
+        $directory ??= getcwd();
+        if (false === $directory) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
         }
 
-        if (! str_starts_with($target, '/')) {
-            return \dirname($this->file) . '/' . $target;
-        }
-
-        return $target;
+        return $directory . \DIRECTORY_SEPARATOR . $path;
     }
 }
