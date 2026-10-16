@@ -299,7 +299,7 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function resolveTargetFile(): string
     {
-        if (! \function_exists('realpath') || ! \function_exists('clearstatcache')) {
+        if (! \function_exists('realpath') || ! \function_exists('clearstatcache') || ! \function_exists('is_link')) {
             throw InvalidArgumentException::forUnreadableFile($this->file);
         }
 
@@ -319,7 +319,7 @@ final class PhpFileConfig implements ConfigInterface
                 return false !== $resolved ? $resolved : $file;
             }
 
-            if (isset($visited[$file])) {
+            if (isset($visited[$file]) || ! \function_exists('readlink')) {
                 throw InvalidArgumentException::forUnreadableFile($this->file);
             }
 
@@ -346,7 +346,7 @@ final class PhpFileConfig implements ConfigInterface
     private function absolutePath(string $path, ?string $directory = null): string
     {
         if ('\\' === \DIRECTORY_SEPARATOR && 1 === strspn($path, '\\/')) {
-            $directory ??= getcwd();
+            $directory ??= \function_exists('getcwd') ? getcwd() : false;
             if (false === $directory || 1 !== preg_match(
                 '~^(?:[a-zA-Z]:|[\\\\/]{2}(?:[?.][\\\\/]UNC[\\\\/])?[^\\\\/]+[\\\\/][^\\\\/]+)~i',
                 $directory,
@@ -358,7 +358,7 @@ final class PhpFileConfig implements ConfigInterface
             return $root[0] . $path;
         }
 
-        if (str_starts_with($path, '/') || str_contains($path, '://')
+        if (str_starts_with($path, '/') || (null === $directory && str_contains($path, '://'))
             || ('\\' === \DIRECTORY_SEPARATOR && (str_starts_with($path, '\\') || 1 === preg_match(
                 '~^[a-zA-Z]:[\\\\/]~',
                 $path
@@ -367,15 +367,24 @@ final class PhpFileConfig implements ConfigInterface
         }
 
         if ('\\' === \DIRECTORY_SEPARATOR && 1 === preg_match('~^[a-zA-Z]:~', $path)) {
-            $resolved = realpath($path);
-            if (false === $resolved) {
+            if (false === realpath($path)) {
                 throw InvalidArgumentException::forUnreadableFile($this->file);
             }
 
-            return $resolved;
+            $drive = substr($path, 0, 2);
+            $directory = \function_exists('getcwd') ? getcwd() : false;
+            if (false === $directory || 0 !== strncasecmp($drive, $directory, 2)) {
+                $directory = realpath($drive . '.');
+            }
+
+            if (false === $directory) {
+                throw InvalidArgumentException::forUnreadableFile($this->file);
+            }
+
+            return rtrim($directory, '\\/') . \DIRECTORY_SEPARATOR . substr($path, 2);
         }
 
-        $directory ??= getcwd();
+        $directory ??= \function_exists('getcwd') ? getcwd() : false;
         if (false === $directory) {
             throw InvalidArgumentException::forUnreadableFile($this->file);
         }

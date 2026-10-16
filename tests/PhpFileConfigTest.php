@@ -760,6 +760,61 @@ final class PhpFileConfigTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function literalUriSymlinkTargets(): iterable
+    {
+        yield 'existing literal target' => [true];
+        yield 'dangling literal target' => [false];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('literalUriSymlinkTargets')]
+    public function testPosixSymlinkTargetsContainingUriSyntaxRemainRelativePaths(bool $existing): void
+    {
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            self::markTestSkipped('POSIX permits colon characters in relative symlink targets.');
+        }
+
+        mkdir($this->tempDirectory . '/source', 0o777, true);
+        $external = $this->tempDirectory . '/external.php';
+        $externalContent = '<?php return ["external" => true];';
+        file_put_contents($external, $externalContent);
+        $link = $this->tempDirectory . '/source/settings.php';
+        $literal = 'file://' . $external;
+        $target = \dirname($link) . '/' . $literal;
+        if ($existing) {
+            mkdir(\dirname($target), 0o777, true);
+            file_put_contents($target, '<?php return ["initial" => true];');
+        }
+
+        $this->createSymlink($literal, $link);
+        if ($existing) {
+            self::assertSame([
+                'initial' => true,
+            ], require $link);
+        }
+
+        $config = new PhpFileConfig($link, persistent: true, defaultConfig: [
+            'initial' => true,
+        ]);
+        self::assertTrue($config->get('initial'));
+        $config->set('saved', true);
+        $config->remove('initial');
+
+        self::assertSame([
+            'saved' => true,
+        ], require $target);
+        self::assertSame($externalContent, file_get_contents($external));
+        self::assertSame($literal, readlink($link));
+        self::assertFileExists(\dirname($target) . '/.external.php.lock');
+        self::assertFileDoesNotExist($this->tempDirectory . '/.external.php.lock');
+    }
+
+    /**
      * @return iterable<string, array{string}>
      */
     public static function externallyRetargetedDirectories(): iterable
@@ -1036,6 +1091,8 @@ final class PhpFileConfigTest extends TestCase
     {
         yield 'realpath disabled during set' => ['realpath', 'set'];
         yield 'realpath disabled during remove' => ['realpath', 'remove'];
+        yield 'is_link disabled during set' => ['is_link', 'set'];
+        yield 'is_link disabled during remove' => ['is_link', 'remove'];
         yield 'cache refresh disabled during set' => ['clearstatcache', 'set'];
         yield 'cache refresh disabled during remove' => ['clearstatcache', 'remove'];
         yield 'stat disabled during set' => ['stat', 'set'];
@@ -1107,26 +1164,82 @@ final class PhpFileConfigTest extends TestCase
     {
         yield 'new file without metadata functions' => ['stat,filegroup,chgrp', false];
         yield 'existing group already matches without chgrp' => ['chgrp', true];
+        yield 'absolute regular file without path helpers' => ['getcwd,readlink', true];
     }
 
     /**
-     * @return iterable<string, array{bool}>
+     * @return iterable<string, array{string, string}>
      */
-    public static function readsWithoutRealpath(): iterable
+    public static function unavailableRelativeOrLinkFunctions(): iterable
     {
-        yield 'absolute input' => [false];
-        yield 'relative input' => [true];
+        foreach (['get', 'set', 'remove'] as $operation) {
+            yield 'relative input during ' . $operation => ['getcwd', $operation];
+            yield 'symlink input during ' . $operation => ['readlink', $operation];
+        }
     }
 
     /**
      * @return void
      */
     #[Test]
-    #[DataProvider('readsWithoutRealpath')]
-    public function testUnavailableRealpathRejectsReadsThroughTheLibraryException(bool $relative): void
-    {
+    #[DataProvider('unavailableRelativeOrLinkFunctions')]
+    public function testUnavailableRequiredPathHelpersRejectOperationsWithoutChangingTheFile(
+        string $function,
+        string $operation
+    ): void {
         if (! \function_exists('proc_open')) {
-            self::markTestSkipped('Subprocess support is required to disable realpath.');
+            self::markTestSkipped('Subprocess support is required to disable path helpers.');
+        }
+
+        mkdir($this->tempDirectory);
+        $file = $this->tempDirectory . '/settings.php';
+        $content = '<?php return ["initial" => true];';
+        file_put_contents($file, $content);
+        $input = 'settings.php';
+        if ('readlink' === $function) {
+            $input = $this->tempDirectory . '/link.php';
+            $this->createSymlink('settings.php', $input);
+        }
+
+        $workingDirectory = getcwd();
+        try {
+            chdir($this->tempDirectory);
+            $result = $this->runWithDisabledMetadataFunctions($input, $operation, $function);
+            self::assertFalse($result['function_available']);
+            self::assertSame(InvalidArgumentException::class, $result['exception'], $result['message'] ?? '');
+            self::assertSame($content, file_get_contents($file));
+            self::assertSame([], glob($this->tempDirectory . '/cfg_*'));
+            self::assertFileDoesNotExist($this->tempDirectory . '/.settings.php.lock');
+            if ('readlink' === $function) {
+                self::assertSame('settings.php', readlink($input));
+            }
+        } finally {
+            chdir($workingDirectory);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function readsWithoutPathFunctions(): iterable
+    {
+        yield 'absolute input without realpath' => ['realpath', false];
+        yield 'relative input without realpath' => ['realpath', true];
+        yield 'absolute input without is_link' => ['is_link', false];
+        yield 'relative input without is_link' => ['is_link', true];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('readsWithoutPathFunctions')]
+    public function testUnavailablePathFunctionsRejectReadsThroughTheLibraryException(
+        string $function,
+        bool $relative
+    ): void {
+        if (! \function_exists('proc_open')) {
+            self::markTestSkipped('Subprocess support is required to disable path functions.');
         }
 
         mkdir($this->tempDirectory);
@@ -1137,7 +1250,7 @@ final class PhpFileConfigTest extends TestCase
 
         try {
             chdir($this->tempDirectory);
-            $result = $this->runWithDisabledMetadataFunctions($relative ? 'settings.php' : $file, 'get', 'realpath');
+            $result = $this->runWithDisabledMetadataFunctions($relative ? 'settings.php' : $file, 'get', $function);
             self::assertFalse($result['function_available']);
             self::assertSame(InvalidArgumentException::class, $result['exception'], $result['message'] ?? '');
             self::assertSame($content, file_get_contents($file));

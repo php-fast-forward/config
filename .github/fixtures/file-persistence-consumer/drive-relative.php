@@ -115,4 +115,23 @@ if (! $result['native_input_supported']) {
     }
 }
 
+if (null !== $prefix) {
+    chdir($argv[1]);
+    $input = $drive . $prefix . 'native-plain.php';
+    $result['other_drive_input_supported'] = false !== realpath($input);
+    if ($result['other_drive_input_supported']) {
+        $config = new PhpFileConfig($input, persistent: true);
+        if (true !== $config->get('plain')) {
+            throw new RuntimeException('A drive-relative input did not retain its native drive directory.');
+        }
+
+        $config->set('other_drive', true);
+        if (true !== (require $directory . '/native-plain.php')['other_drive']) {
+            throw new RuntimeException('A drive-relative input was persisted on the wrong drive.');
+        }
+
+        $result['other_drive_passed'] = true;
+    }
+}
+
 echo json_encode($result, \JSON_THROW_ON_ERROR);

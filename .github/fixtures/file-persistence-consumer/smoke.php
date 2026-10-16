@@ -60,7 +60,8 @@ try {
     echo 'native drives: ' . substr($roots[0], 0, 2) . ' and ' . substr($roots[1], 0, 2) . \PHP_EOL;
 
     foreach ($roots as $root) {
-        $process = proc_open([\PHP_BINARY, __DIR__ . '/drive-relative.php'], [
+        $otherRoot = $root === $roots[0] ? $roots[1] : $roots[0];
+        $process = proc_open([\PHP_BINARY, __DIR__ . '/drive-relative.php', $otherRoot], [
             0 => ['pipe', 'r'],
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w'],

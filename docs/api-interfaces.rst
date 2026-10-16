@@ -111,6 +111,9 @@ same resolved target for its lock, fresh read, and atomic replacement. Symlink c
 followed to the final target, including a missing target created from ``defaultConfig``;
 cyclic or excessively long chains raise
 ``FastForward\\Config\\Exception\\InvalidArgumentException`` before any link is replaced.
+On POSIX, symlink targets are literal filesystem paths: ``://`` in a relative target does
+not select a stream wrapper. Unavailable PHP functions required to resolve a path also raise
+``InvalidArgumentException`` before any persistent change.
 
 Atomic replacements preserve existing permission bits and, on POSIX systems, the existing
 file's group. If the group or permissions cannot be applied to the temporary file, including
@@ -124,6 +127,8 @@ are anchored to the initial drive or UNC volume on first use. Fully qualified dr
 UNC, and DOS device paths retain their supplied root.
 
 Drive-relative paths such as ``C:settings.php`` use native PHP resolution when available.
+Supported inputs are anchored to their drive's directory while retaining their relative
+suffix, so later symlink retargeting still applies.
 If such a path cannot be resolved, including an existing path unsupported by native PHP, it raises
 ``InvalidArgumentException`` before creating directories, locks, or files. Use a
 fully qualified path such as ``C:\\app\\settings.php`` when creating a new target.
