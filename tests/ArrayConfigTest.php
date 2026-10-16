@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace FastForward\Config\Tests;
 
+use stdClass;
 use FastForward\Config\ArrayConfig;
 use FastForward\Config\Exception\InvalidArgumentException;
 use FastForward\Config\Helper\ConfigHelper;
@@ -35,6 +36,251 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(InvalidArgumentException::class)]
 final class ArrayConfigTest extends TestCase
 {
+    /**
+     * @param string $operation
+     */
+    #[DataProvider('lookupOperations')]
+    public function testRejectsEmptyLookupPaths(string $operation): void
+    {
+        $config = new ArrayConfig();
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Path cannot be an empty string');
+
+        $config->{$operation}('');
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function lookupOperations(): array
+    {
+        return [
+            'get' => ['get'],
+            'has' => ['has'],
+            'remove' => ['remove'],
+        ];
+    }
+
+    /**
+     * @param string $key
+     */
+    #[DataProvider('configurationPaths')]
+    public function testSupportsExistingPathDelimitersAndEmptySegments(string $key): void
+    {
+        $config = new ArrayConfig([
+            $key => 'initial',
+        ]);
+
+        self::assertTrue($config->has($key));
+        self::assertSame('initial', $config->get($key));
+
+        $config->set($key, 'updated');
+        self::assertSame('updated', $config[$key]);
+
+        unset($config[$key]);
+        self::assertFalse($config->has($key));
+        self::assertSame('fallback', $config->get($key, 'fallback'));
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function configurationPaths(): array
+    {
+        return [
+            'dot' => ['app.database.host'],
+            'slash' => ['app/database/host'],
+            'mixed delimiters' => ['app/database.host'],
+            'empty segments' => ['.app..host.'],
+            'slash empty segments' => ['/app//host/'],
+            'numeric segments' => ['services.0.options.1'],
+            'numeric string key' => ['0'],
+        ];
+    }
+
+    /**
+     * @param mixed $value
+     */
+    #[DataProvider('falsyValuesProvider')]
+    public function testExistenceAndDefaultsPreserveFalsyValues(mixed $value): void
+    {
+        $config = new ArrayConfig([
+            'app.value' => $value,
+        ]);
+
+        self::assertTrue($config->has('app.value'));
+        self::assertTrue(isset($config['app.value']));
+        self::assertSame($value ?? 'fallback', $config->get('app.value', 'fallback'));
+        self::assertSame($value, $config['app.value']);
+        self::assertFalse($config->has('app.value.child'));
+        self::assertSame('fallback', $config->get('app.value.child', 'fallback'));
+        self::assertSame([
+            'app' => [
+                'value' => $value,
+            ],
+        ], $config->toArray());
+
+        $config->remove('app.value');
+        self::assertFalse($config->has('app.value'));
+        self::assertSame([
+            'app' => [],
+        ], $config->toArray());
+    }
+
+    /**
+     * @return void
+     */
+    public function testMissingAndNullValuesWrapAssociativeDefaults(): void
+    {
+        $config = new ArrayConfig([
+            'null' => null,
+        ]);
+
+        foreach (['missing', 'null', 'missing.child'] as $key) {
+            $value = $config->get($key, [
+                'app.name' => 'fallback',
+            ]);
+
+            self::assertInstanceOf(ArrayConfig::class, $value);
+            self::assertSame([
+                'app' => [
+                    'name' => 'fallback',
+                ],
+            ], $value->toArray());
+        }
+    }
+
+    /**
+     * @return void
+     */
+    public function testWrapsOnlyEmptyAndStringKeyedArrays(): void
+    {
+        $config = new ArrayConfig([
+            'empty' => [],
+            'map' => [
+                'key' => 'value',
+            ],
+            'list' => ['A', 'B'],
+            'sparse' => [
+                2 => 'A',
+                5 => 'B',
+            ],
+            'mixed' => [
+                0 => 'A',
+                'key' => 'B',
+            ],
+        ]);
+
+        self::assertInstanceOf(ArrayConfig::class, $config->get('empty'));
+        self::assertSame([], $config->get('empty')->toArray());
+        self::assertInstanceOf(ArrayConfig::class, $config->get('map'));
+        self::assertSame(['A', 'B'], $config->get('list'));
+        self::assertSame([
+            2 => 'A',
+            5 => 'B',
+        ], $config->get('sparse'));
+        self::assertSame([
+            0 => 'A',
+            'key' => 'B',
+        ], $config->get('mixed'));
+    }
+
+    /**
+     * @return void
+     */
+    public function testReadingAndRemovingMissingPathsDoNotMutateData(): void
+    {
+        $values = [
+            'app' => [
+                'scalar' => 'value',
+                'null' => null,
+                'list' => ['A', 'B'],
+            ],
+        ];
+        $config = new ArrayConfig($values);
+
+        foreach (['missing', 'missing.child', 'app.scalar.child', 'app.null.child', 'app.list.9'] as $key) {
+            self::assertFalse($config->has($key));
+            self::assertNull($config->get($key));
+            $config->remove($key);
+            self::assertSame($values, $config->toArray());
+        }
+
+        $config->remove('app.list.0');
+        self::assertSame([
+            1 => 'B',
+        ], $config->get('app.list'));
+    }
+
+    /**
+     * @return void
+     */
+    public function testNestedWritesReplaceScalarAncestorsAndMergeMaps(): void
+    {
+        $config = new ArrayConfig([
+            'app' => 'old',
+        ]);
+        $config->set('app.database.host', 'localhost');
+        $config->set([
+            'app.database.port' => 3306,
+            'app.debug' => false,
+        ]);
+
+        self::assertSame([
+            'app' => [
+                'database' => [
+                    'host' => 'localhost',
+                    'port' => 3306,
+                ],
+                'debug' => false,
+            ],
+        ], $config->toArray());
+
+        $config->set('app.database');
+        self::assertTrue($config->has('app.database'));
+        self::assertSame('fallback', $config->get('app.database', 'fallback'));
+        self::assertFalse($config->get('app.debug'));
+    }
+
+    /**
+     * @return void
+     */
+    public function testSubtreesAndExportsAreIndependentArraySnapshots(): void
+    {
+        $config = new ArrayConfig([
+            'app.name' => 'original',
+        ]);
+        $subtree = $config->get('app');
+        $subtree->set('name', 'subtree');
+
+        $export = $config->toArray();
+        $export['app']['name'] = 'export';
+
+        self::assertSame('original', $config->get('app.name'));
+        self::assertSame('subtree', $subtree->get('name'));
+    }
+
+    /**
+     * @return void
+     */
+    public function testIterationRetainsLeafTypesAndSkipsEmptyArrays(): void
+    {
+        $object = new stdClass();
+        $config = new ArrayConfig([
+            'app' => [
+                'null' => null,
+                'empty' => [],
+                'list' => [false, $object],
+            ],
+        ]);
+
+        self::assertSame([
+            'app.null' => null,
+            'app.list.0' => false,
+            'app.list.1' => $object,
+        ], iterator_to_array($config));
+    }
+
     /**
      * @return void
      */

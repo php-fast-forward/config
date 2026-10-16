@@ -18,8 +18,6 @@ declare(strict_types=1);
 
 namespace FastForward\Config;
 
-use Dflydev\DotAccessData\Data;
-use Dflydev\DotAccessData\DataInterface;
 use FastForward\Config\Helper\ConfigHelper;
 
 /**
@@ -64,12 +62,12 @@ final class AggregateConfig implements ConfigInterface
      */
     public function __invoke(): ConfigInterface
     {
-        $data = new Data();
+        $data = [];
 
         foreach ($this->configs as $config) {
-            $data->import(ConfigHelper::normalize($config->toArray()), DataInterface::MERGE);
+            $data = ConfigHelper::merge($data, ConfigHelper::normalize($config->toArray()));
         }
 
-        return new ArrayConfig($data->export());
+        return new ArrayConfig($data);
     }
 }

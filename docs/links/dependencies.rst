@@ -13,8 +13,8 @@ Runtime Dependencies
      - Why it is used
    * - ``php``
      - The package requires PHP ``8.3`` or newer.
-   * - ``dflydev/dot-access-data``
-     - Provides the dot-notation storage primitives used by ``ArrayConfig``.
+   * - ``brick/varexporter``
+     - Converts configuration values, including supported objects and closures, into reloadable PHP code for persistent ``PhpFileConfig`` writes. It is independent of dot-notation storage.
    * - ``laminas/laminas-config-aggregator``
      - Provides provider aggregation, PHP file providers, and optional cache-file support.
    * - ``psr/container``
@@ -36,5 +36,6 @@ Development Dependencies
 Integration Notes
 -----------------
 
+- Dot-notation storage, path traversal, and configuration merging are implemented natively by this package.
 - The package ships with the PSR-16 interface, but not with a concrete cache backend. Bring your own cache implementation when you use ``configCache()``.
 - Provider-based and directory-based caching rely on Laminas ConfigAggregator and a writable cache-file path.

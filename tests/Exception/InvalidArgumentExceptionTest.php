@@ -32,6 +32,16 @@ final class InvalidArgumentExceptionTest extends TestCase
     /**
      * @return void
      */
+    public function testForEmptyPathWillReturnExpectedMessage(): void
+    {
+        $exception = InvalidArgumentException::forEmptyPath();
+
+        self::assertSame('Path cannot be an empty string', $exception->getMessage());
+    }
+
+    /**
+     * @return void
+     */
     #[Test]
     public function testForNonStringKeyWithValueWillReturnExpectedMessage(): void
     {
@@ -83,10 +93,7 @@ final class InvalidArgumentExceptionTest extends TestCase
         $exception = InvalidArgumentException::forUnwritableFile($file);
 
         self::assertInstanceOf(InvalidArgumentException::class, $exception);
-        self::assertSame(
-            \sprintf('The file "%s" is not writable.', $file),
-            $exception->getMessage(),
-        );
+        self::assertSame(\sprintf('The file "%s" is not writable.', $file), $exception->getMessage());
     }
 
     /**
@@ -105,4 +112,3 @@ final class InvalidArgumentExceptionTest extends TestCase
         );
     }
 }
-
