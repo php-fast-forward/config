@@ -966,7 +966,7 @@ final class PhpFileConfigTest extends TestCase
         $target = null;
         if ('link target' === $kind) {
             mkdir($file);
-            $this->createSymlink('settings.php' . $separator, $link);
+            $this->createSymlink($file . $separator, $link);
             $target = readlink($link);
             rmdir($file);
             $input = $link;
@@ -975,23 +975,23 @@ final class PhpFileConfigTest extends TestCase
         $content = '<?php return ["initial" => true, "remove" => true];';
         file_put_contents($file, $content);
         if ('link input' === $kind) {
-            $this->createSymlink('settings.php', $link);
+            $this->createSymlink($file, $link);
             $target = readlink($link);
             $input = $link . $separator;
         }
 
         clearstatcache(true);
-        self::assertFalse(file_exists($input));
+        $nativeExists = file_exists($input);
         self::assertFalse(is_file($input));
         $default = 'get' === $operation ? null : [
             'fallback' => true,
         ];
         $config = new PhpFileConfig($input, persistent: true, defaultConfig: $default);
         try {
-            if ('get defaults' === $operation) {
+            if ('get defaults' === $operation && ! $nativeExists) {
                 self::assertSame($default, $config->toArray());
             } else {
-                if ('get' === $operation) {
+                if ('get' === $operation || 'get defaults' === $operation) {
                     $config->get('initial');
                 } elseif ('set' === $operation) {
                     $config->set('saved', true);
@@ -1002,7 +1002,7 @@ final class PhpFileConfigTest extends TestCase
                 self::fail('A file followed by a separator must not be read or replaced as that file.');
             }
         } catch (InvalidArgumentException) {
-            self::assertNotSame('get defaults', $operation);
+            self::assertTrue('get defaults' !== $operation || $nativeExists);
         }
 
         self::assertSame($content, file_get_contents($file));

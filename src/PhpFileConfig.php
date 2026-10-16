@@ -313,6 +313,10 @@ final class PhpFileConfig implements ConfigInterface
             return $file;
         }
 
+        if (file_exists($file) && ! is_file($file)) {
+            return $file;
+        }
+
         $visited = [];
 
         for ($depth = 0; $depth < 64; ++$depth) {
