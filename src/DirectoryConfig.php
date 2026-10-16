@@ -22,6 +22,7 @@ use DirectoryIterator;
 use FastForward\Config\Exception\InvalidArgumentException;
 use Generator;
 use Laminas\ConfigAggregator\GlobTrait;
+use UnexpectedValueException;
 
 /**
  * Class DirectoryConfig.
@@ -124,7 +125,12 @@ class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInt
                     continue;
                 }
 
-                foreach (new DirectoryIterator($directory) as $entry) {
+                $iterator = $this->openDirectory($directory);
+                if (! $iterator instanceof DirectoryIterator) {
+                    continue;
+                }
+
+                foreach ($iterator as $entry) {
                     if ($entry->isDir() && ! $entry->isLink() && ! str_starts_with($entry->getFilename(), '.')) {
                         $nextDirectories[] = $entry->getPathname();
                     }
@@ -149,6 +155,29 @@ class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInt
         }
 
         return $files;
+    }
+
+    /**
+     * Skips children that become inaccessible between discovery and opening.
+     *
+     * @param string $directory the discovered directory path
+     *
+     * @return DirectoryIterator|null
+     *
+     * @throws UnexpectedValueException for root failures or unrelated directory-opening errors
+     */
+    private function openDirectory(string $directory): ?DirectoryIterator
+    {
+        try {
+            return new DirectoryIterator($directory);
+        } catch (UnexpectedValueException $unexpectedValueException) {
+            clearstatcache(true, $directory);
+            if ($directory !== $this->directory && (! is_dir($directory) || ! is_readable($directory))) {
+                return null;
+            }
+
+            throw $unexpectedValueException;
+        }
     }
 
     /**

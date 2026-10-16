@@ -81,6 +81,8 @@ Discovery stays lazy. Root files are loaded before files one directory below, th
 
 Child directory symlinks are not followed, so aliases and recursive cycles do not duplicate traversal. Hidden child directories are skipped. File symlinks may be loaded, but every resolved file is included only once; its first discovered path determines its merge position. A root directory explicitly supplied by the caller may itself be a symlink.
 
+Recursive traversal skips child directories that are unreadable or disappear before they can be opened. Accessible configuration still loads. Root read failures and unrelated filesystem or configuration-file errors remain visible.
+
 Existing generated cache files bypass discovery. Invalidate or rebuild them after upgrading if they were created while deeper configuration files were omitted.
 
 PhpFileConfig

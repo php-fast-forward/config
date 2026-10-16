@@ -36,6 +36,7 @@ use PHPUnit\Framework\Attributes\UsesTrait;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use UnexpectedValueException;
 
 use function FastForward\Config\config;
 use function FastForward\Config\configDir;
@@ -294,6 +295,81 @@ final class DirectoryDiscoveryTest extends TestCase
 
         self::assertSame('after', $config->get('value'));
         self::assertTrue($config->get('added'));
+    }
+
+    /**
+     * @param string $entrypoint
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('recursiveEntrypoints')]
+    public function testUnreadableChildDoesNotHideAccessibleConfiguration(string $entrypoint): void
+    {
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            self::markTestSkipped('chmod does not reproduce POSIX directory read permissions on Windows.');
+        }
+
+        $this->writeConfig('root.php', [
+            'root' => true,
+            'items' => ['root'],
+        ]);
+        $this->writeConfig('readable/deep/app.php', [
+            'deep' => true,
+            'items' => ['deep'],
+        ]);
+        $this->writeConfig('unreadable/app.php', [
+            'unreadable' => true,
+        ]);
+        $config = $this->createConfig($entrypoint, $this->directory);
+        $unreadable = $this->directory . '/unreadable';
+        chmod($unreadable, 0o000);
+        clearstatcache(true, $unreadable);
+
+        try {
+            if (is_readable($unreadable)) {
+                self::markTestSkipped('The current process can still read mode-000 directories, for example as root.');
+            }
+
+            self::assertSame([
+                'root' => true,
+                'items' => ['root', 'deep'],
+                'deep' => true,
+            ], $config->toArray());
+        } finally {
+            chmod($unreadable, 0o700);
+            clearstatcache(true, $unreadable);
+        }
+    }
+
+    /**
+     * @param string $entrypoint
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('recursiveEntrypoints')]
+    public function testRootReadFailureAfterConstructionIsNotHidden(string $entrypoint): void
+    {
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            self::markTestSkipped('chmod does not reproduce POSIX directory read permissions on Windows.');
+        }
+
+        $config = $this->createConfig($entrypoint, $this->directory);
+        chmod($this->directory, 0o000);
+        clearstatcache(true, $this->directory);
+
+        try {
+            if (is_readable($this->directory)) {
+                self::markTestSkipped('The current process can still read mode-000 directories, for example as root.');
+            }
+
+            $this->expectException(UnexpectedValueException::class);
+            $config->toArray();
+        } finally {
+            chmod($this->directory, 0o700);
+            clearstatcache(true, $this->directory);
+        }
     }
 
     /**
