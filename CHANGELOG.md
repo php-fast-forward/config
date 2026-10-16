@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keep accessible configuration available when a child directory is unreadable or disappears during recursive discovery, while preserving root read failures and unrelated errors.
 - Treat directory path metacharacters literally during top-level and recursive discovery, preventing similarly named sibling directories from contributing configuration.
 - Include discovered configuration through resolved absolute paths so relative roots cannot load outside namesakes through include_path or changes to the working directory.
+- Resolve PSR-11 container identifiers consistently, require the documented config. prefix, and report empty or unknown configuration identifiers as container not-found errors.
+- Use core string functions for directory paths and container prefixes so runtime-only PHP 8.3 consumers do not require undeclared multibyte functions or PHP 8.4 polyfills.
 - Document and test the explicit Laminas config_cache_enabled flag, writable parent requirements, and existing-file reuse for provider and directory file-cache examples.
 
 ## [1.6.0] - 2026-10-16

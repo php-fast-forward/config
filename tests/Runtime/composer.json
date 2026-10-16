@@ -1,0 +1,22 @@
+{
+    "name": "fast-forward/config-runtime-smoke",
+    "type": "project",
+    "require": {
+        "fast-forward/config": "dev-main"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../..",
+            "options": {
+                "symlink": false,
+                "versions": {
+                    "fast-forward/config": "dev-main"
+                }
+            }
+        }
+    ],
+    "config": {
+        "allow-plugins": false
+    }
+}
