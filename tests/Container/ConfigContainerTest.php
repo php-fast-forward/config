@@ -24,6 +24,7 @@ use FastForward\Config\Container\ConfigContainer;
 use FastForward\Config\Exception\ContainerNotFoundException;
 use FastForward\Config\Helper\ConfigHelper;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -49,6 +50,7 @@ final class ConfigContainerTest extends TestCase
         self::assertTrue($container->has(ConfigContainer::ALIAS));
         self::assertTrue($container->has(ConfigInterface::class));
         self::assertTrue($container->has($config::class));
+        self::assertTrue($container->has(ConfigContainer::class));
     }
 
     /**
@@ -135,5 +137,79 @@ final class ConfigContainerTest extends TestCase
         $container = new ConfigContainer($config);
 
         self::assertSame($container, $container->get(ConfigContainer::class));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidIdentifiers(): iterable
+    {
+        yield 'empty' => [''];
+        yield 'near prefix' => ['configXsecret'];
+        yield 'missing delimiter' => ['configsecret'];
+        yield 'slash prefix' => ['config/secret'];
+        yield 'empty suffix' => ['config.'];
+        yield 'only dots' => ['config...'];
+        yield 'only path delimiters' => ['config././'];
+        yield 'missing key' => ['config.missing'];
+    }
+
+    /**
+     * @param string $id
+     *
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('invalidIdentifiers')]
+    public function testInvalidIdentifiersFollowContainerNotFoundContract(string $id): void
+    {
+        $container = new ConfigContainer(new ArrayConfig([
+            'secret' => 'value',
+            'ecret' => 'value',
+        ]));
+
+        self::assertFalse($container->has($id));
+
+        $this->expectException(ContainerNotFoundException::class);
+        $container->get($id);
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testUnicodeNestedPathsAndNullValuesAreResolved(): void
+    {
+        $container = new ConfigContainer(new ArrayConfig([
+            '应用' => [
+                '名称' => '配置',
+                'nullable' => null,
+            ],
+        ]));
+
+        self::assertTrue($container->has('config.应用.名称'));
+        self::assertSame('配置', $container->get('config.应用.名称'));
+        self::assertTrue($container->has('config.应用/名称'));
+        self::assertSame('配置', $container->get('config.应用/名称'));
+        self::assertTrue($container->has('config.应用.nullable'));
+        self::assertNull($container->get('config.应用.nullable'));
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testNonemptyPathsPreserveEmptySegments(): void
+    {
+        $container = new ConfigContainer(new ArrayConfig([
+            '' => [
+                '' => 'empty-segments',
+            ],
+        ]));
+
+        self::assertTrue($container->has('config..'));
+        self::assertSame('empty-segments', $container->get('config..'));
+        self::assertTrue($container->has('config./'));
+        self::assertSame('empty-segments', $container->get('config./'));
     }
 }
