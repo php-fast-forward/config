@@ -22,7 +22,6 @@ use FastForward\Config\ArrayAccessConfigTrait;
 use FastForward\Config\ArrayConfig;
 use FastForward\Config\ConfigInterface;
 use FastForward\Config\Helper\ConfigHelper;
-use FastForward\Config\LamiasConfigAggregatorConfig;
 use FastForward\Config\LaminasConfigAggregatorConfig;
 use FastForward\Config\LazyLoadConfigTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -35,7 +34,6 @@ use PHPUnit\Framework\TestCase;
  * @internal
  */
 #[CoversClass(LaminasConfigAggregatorConfig::class)]
-#[CoversClass(LamiasConfigAggregatorConfig::class)]
 #[UsesClass(ArrayConfig::class)]
 #[UsesClass(ConfigHelper::class)]
 #[UsesTrait(LazyLoadConfigTrait::class)]
@@ -48,8 +46,12 @@ final class LaminasConfigAggregatorConfigTest extends TestCase
     #[Test]
     public function testInvokeAggregatesProviders(): void
     {
-        $provider1 = static fn(): array => ['foo' => 'bar'];
-        $provider2 = static fn(): array => ['baz' => 'qux'];
+        $provider1 = static fn(): array => [
+            'foo' => 'bar',
+        ];
+        $provider2 = static fn(): array => [
+            'baz' => 'qux',
+        ];
 
         $config = new LaminasConfigAggregatorConfig([$provider1, $provider2]);
 
@@ -58,20 +60,5 @@ final class LaminasConfigAggregatorConfigTest extends TestCase
             'foo' => 'bar',
             'baz' => 'qux',
         ], $config->toArray());
-    }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testDeprecatedLamiasConfigAggregatorConfigExtendsLaminasConfigAggregatorConfig(): void
-    {
-        $provider = static fn(): array => ['legacy' => 'value'];
-
-        $config = new LamiasConfigAggregatorConfig([$provider]);
-
-        self::assertInstanceOf(LaminasConfigAggregatorConfig::class, $config);
-        self::assertInstanceOf(ConfigInterface::class, $config);
-        self::assertSame(['legacy' => 'value'], $config->toArray());
     }
 }
