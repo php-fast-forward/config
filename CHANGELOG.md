@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove the deprecated misspelled LamiasConfigAggregatorConfig class without an autoload alias fallback. This is an intentional compatibility break: replace imports, type declarations, and instantiations with LaminasConfigAggregatorConfig.
 
+### Fixed
+
+- Normalize each provider or PHP file's dot and slash paths before Laminas merges sources, preserving later-source precedence, list order, merge instructions, lazy loading, and file-cache behavior.
+
 ## [1.6.0] - 2026-10-16
 
 ### Changed

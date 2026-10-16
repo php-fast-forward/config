@@ -18,7 +18,10 @@ declare(strict_types=1);
 
 namespace FastForward\Config;
 
+use FastForward\Config\Helper\ConfigHelper;
+use Generator;
 use Laminas\ConfigAggregator\ConfigAggregator;
+use Laminas\ConfigAggregator\InvalidConfigProviderException;
 
 /**
  * Class LaminasConfigAggregatorConfig.
@@ -55,8 +58,81 @@ class LaminasConfigAggregatorConfig implements ConfigInterface
      */
     public function __invoke(): ConfigInterface
     {
-        $configAggregator = new ConfigAggregator($this->providers, $this->cachedConfigFile);
+        $configAggregator = new ConfigAggregator($this->normalizeProviders(), $this->cachedConfigFile);
 
         return new ArrayConfig(config: $configAggregator->getMergedConfig());
+    }
+
+    /**
+     * Normalizes each provider result before Laminas applies cross-source merging.
+     * Repeated provider identities retain the same wrapper for upstream validation.
+     *
+     * @return iterable
+     */
+    private function normalizeProviders(): iterable
+    {
+        $normalizers = [];
+
+        foreach ($this->providers as $provider) {
+            if (! \is_string($provider) && ! \is_callable($provider)) {
+                yield $provider;
+
+                continue;
+            }
+
+            $identity = match (true) {
+                \is_string($provider) => 'class:' . $provider,
+                \is_object($provider) => 'object:' . spl_object_id($provider),
+                default => null,
+            };
+
+            if (null !== $identity && isset($normalizers[$identity])) {
+                yield $normalizers[$identity];
+
+                continue;
+            }
+
+            $normalizer = static function () use ($provider): mixed {
+                if (\is_string($provider)) {
+                    if (! class_exists($provider)) {
+                        throw InvalidConfigProviderException::fromNamedProvider($provider);
+                    }
+
+                    $provider = new $provider();
+
+                    if (! \is_callable($provider)) {
+                        throw InvalidConfigProviderException::fromUnsupportedType(get_debug_type($provider));
+                    }
+                }
+
+                return self::normalizeResult($provider());
+            };
+
+            if (null !== $identity) {
+                $normalizers[$identity] = $normalizer;
+            }
+
+            yield $normalizer;
+        }
+    }
+
+    /**
+     * Normalizes individual arrays yielded by generator-based file providers too.
+     *
+     * @param mixed $config
+     *
+     * @return mixed
+     */
+    private static function normalizeResult(mixed $config): mixed
+    {
+        if ($config instanceof Generator) {
+            return (static function () use ($config): Generator {
+                foreach ($config as $values) {
+                    yield \is_array($values) ? ConfigHelper::normalize($values) : $values;
+                }
+            })();
+        }
+
+        return \is_array($config) ? ConfigHelper::normalize($config) : $config;
     }
 }
