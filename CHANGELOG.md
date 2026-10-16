@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Give each CachedConfig wrapper an isolated, portable PSR-16 default key. Cross-instance or cross-request reuse now requires an explicit cacheKey; old class-name entries are not reused.
+
 ### Removed
 
 - Remove the deprecated misspelled LamiasConfigAggregatorConfig class without an autoload alias fallback. This is an intentional compatibility break: replace imports, type declarations, and instantiations with LaminasConfigAggregatorConfig.
+
+### Fixed
+
+- Resolve valid source data on cache misses, evictions, non-array entries, and declined initial writes without a has()/get() race or mandatory cache readback, while preserving lazy cache hits.
+- Report failed persistent cache mutations with RuntimeException when the backend returns false, retaining the local mutation for application recovery.
 
 ## [1.6.0] - 2026-10-16
 
