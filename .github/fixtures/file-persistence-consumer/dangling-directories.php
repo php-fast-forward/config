@@ -24,10 +24,11 @@ return static function (string $directory): array {
             $nativeRelative = '\\' === \DIRECTORY_SEPARATOR && 'relative' === $kind;
             $case = $nativeRelative ? $directory : $root . '/' . $kind;
             $prefix = $nativeRelative ? 'relative-' : '';
+            $length = $nativeRelative ? 1 : 3;
             mkdir($case . '/' . $prefix . 'missing', 0o777, true);
             chdir($case);
-            for ($index = 2; $index >= 0; --$index) {
-                $target = $prefix . ($index < 2 ? 'link' . ($index + 1) : 'missing');
+            for ($index = $length - 1; $index >= 0; --$index) {
+                $target = $prefix . ($index + 1 < $length ? 'link' . ($index + 1) : 'missing');
                 $createLink('absolute' === $kind ? $case . '/' . $target : $target, $case . '/' . $prefix . 'link' . $index);
             }
 
@@ -53,7 +54,7 @@ return static function (string $directory): array {
 
                 $checks['native relative readlink unavailable; rejected before creation'] = 3 === $rejected
                     && ! is_dir($case . '/' . $prefix . 'missing');
-                for ($index = 0; $index < 3; ++$index) {
+                for ($index = 0; $index < $length; ++$index) {
                     $links[$case . '/' . $prefix . 'link' . $index] = false;
                 }
 
