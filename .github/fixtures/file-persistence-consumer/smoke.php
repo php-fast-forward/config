@@ -102,9 +102,23 @@ try {
     $driveExisting = $roots[0] . '/drive-relative/existing.php';
     file_put_contents($driveExisting, '<?php return ["initial" => true];');
     $config = new PhpFileConfig($drive . 'existing.php', persistent: true);
-    $config->set('saved', true);
-    check(true === (require $driveExisting)['saved'], 'An existing drive-relative path did not use native resolution.');
-    echo 'passed: existing drive-relative path' . \PHP_EOL;
+    if (false === realpath($drive . 'existing.php')) {
+        try {
+            $config->set('saved', true);
+            throw new RuntimeException('A drive-relative path unresolved by native PHP was accepted.');
+        } catch (InvalidArgumentException) {
+            check([
+                'initial' => true,
+            ] === (require $driveExisting), 'A rejected existing drive-relative path was modified.');
+            check(! file_exists($roots[0] . '/drive-relative/.existing.php.lock'), 'A rejected path created a lock.');
+        }
+
+        echo 'passed: native-unresolvable drive-relative path rejected without changes' . \PHP_EOL;
+    } else {
+        $config->set('saved', true);
+        check(true === (require $driveExisting)['saved'], 'An existing drive-relative path did not use native resolution.');
+        echo 'passed: existing drive-relative path' . \PHP_EOL;
+    }
 
     mkdir($roots[0] . '/unresolved');
     chdir($roots[0] . '/unresolved');

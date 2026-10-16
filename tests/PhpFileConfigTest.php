@@ -1242,6 +1242,20 @@ final class PhpFileConfigTest extends TestCase
             chdir($this->tempDirectory);
             $driveRelative = substr(getcwd(), 0, 2) . 'settings.php';
             $config = new PhpFileConfig($driveRelative, persistent: true);
+            if (false === realpath($driveRelative)) {
+                try {
+                    $config->set('saved', true);
+                    self::fail('A drive-relative path that native PHP cannot resolve must be rejected.');
+                } catch (InvalidArgumentException) {
+                    self::assertSame([
+                        'initial' => true,
+                    ], require $file);
+                    self::assertFileDoesNotExist($this->tempDirectory . '/.settings.php.lock');
+                }
+
+                return;
+            }
+
             $config->set('saved', true);
 
             self::assertSame([
