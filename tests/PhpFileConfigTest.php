@@ -25,6 +25,7 @@ use FastForward\Config\Exception\InvalidArgumentException;
 use FastForward\Config\Helper\ConfigHelper;
 use FastForward\Config\LazyLoadConfigTrait;
 use FastForward\Config\PhpFileConfig;
+use FastForward\Config\Tests\Stub\FileProxyStream;
 use FilesystemIterator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -815,13 +816,20 @@ final class PhpFileConfigTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{string}>
+     * @return iterable<string, array{string, string|null}>
      */
     public static function relativePathsContainingUriSyntax(): iterable
     {
-        yield 'nested scheme-like component' => ['nested/file://settings.php'];
-        yield 'scheme cannot begin with a digit' => ['9file://settings.php'];
-        yield 'scheme cannot contain an underscore' => ['file_name://settings.php'];
+        yield 'nested scheme-like component' => ['nested/file://settings.php', null];
+        yield 'unregistered numeric prefix' => ['9file://settings.php', null];
+        yield 'scheme cannot contain an underscore' => ['file_name://settings.php', null];
+        yield 'unregistered scheme uses the native filesystem fallback' => [
+            'ff-config-unregistered://settings.php',
+            null,
+        ];
+        yield 'single-character registered name still uses filesystem' => ['x://settings.php', 'x'];
+        yield 'lowercase does not select an uppercase registration' => ['upper://settings.php', 'UPPER'];
+        yield 'mixed case does not select an uppercase registration' => ['UpPeR://settings.php', 'UPPER'];
     }
 
     /**
@@ -829,8 +837,10 @@ final class PhpFileConfigTest extends TestCase
      */
     #[Test]
     #[DataProvider('relativePathsContainingUriSyntax')]
-    public function testRelativePathsContainingUriSyntaxKeepTheirInitialLocation(string $relative): void
-    {
+    public function testRelativePathsContainingUriSyntaxKeepTheirInitialLocation(
+        string $relative,
+        ?string $registered
+    ): void {
         if ('\\' === \DIRECTORY_SEPARATOR) {
             self::markTestSkipped('POSIX permits colon characters in filesystem path components.');
         }
@@ -845,6 +855,9 @@ final class PhpFileConfigTest extends TestCase
         $competingContent = '<?php return ["competing" => true];';
         file_put_contents($competing, $competingContent);
         $workingDirectory = getcwd();
+        if (null !== $registered) {
+            self::assertTrue(stream_wrapper_register($registered, FileProxyStream::class));
+        }
 
         try {
             chdir($source);
@@ -862,6 +875,77 @@ final class PhpFileConfigTest extends TestCase
             self::assertFileDoesNotExist(\dirname($competing) . '/.settings.php.lock');
         } finally {
             chdir($workingDirectory);
+            if (null !== $registered) {
+                stream_wrapper_unregister($registered);
+            }
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function registeredFileStreams(): iterable
+    {
+        yield 'numeric leading protocol' => ['9ffconfig', '9ffconfig'];
+        yield 'exact uppercase registration' => ['FFCONFIGTEST', 'FFCONFIGTEST'];
+        yield 'lowercase registration accepts mixed-case input' => ['ffconfigtest', 'FfConfigTest'];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('registeredFileStreams')]
+    public function testRegisteredFileStreamsKeepNativeProtocolSelection(string $registered, string $requested): void
+    {
+        file_put_contents($this->tempFile, '<?php return ["initial" => true];');
+        self::assertTrue(stream_wrapper_register($registered, FileProxyStream::class));
+        $input = $requested . '://' . $this->tempFile;
+        try {
+            self::assertSame([
+                'initial' => true,
+            ], require $input);
+            self::assertTrue((new PhpFileConfig($input))->get('initial'));
+        } finally {
+            stream_wrapper_unregister($registered);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function leadingFileStreams(): iterable
+    {
+        yield 'lowercase scheme' => ['file'];
+        yield 'uppercase scheme' => ['FILE'];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('leadingFileStreams')]
+    public function testExplicitLeadingFileStreamRemainsReadable(string $scheme): void
+    {
+        file_put_contents($this->tempFile, '<?php return ["initial" => true];');
+        $path = str_replace('\\', '/', $this->tempFile);
+        $input = $scheme . '://' . (str_starts_with($path, '/') ? '' : '/') . $path;
+
+        self::assertTrue((new PhpFileConfig($input))->get('initial'));
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function trailingFileSeparators(): iterable
+    {
+        $separators = '\\' === \DIRECTORY_SEPARATOR ? ['/', '\\'] : ['/'];
+        foreach ($separators as $separator) {
+            foreach (['regular file', 'link input', 'link target'] as $kind) {
+                foreach (['get', 'get defaults', 'set', 'remove'] as $operation) {
+                    yield $kind . ' ' . $operation . ' with ' . $separator => [$kind, $operation, $separator];
+                }
+            }
         }
     }
 
@@ -869,13 +953,88 @@ final class PhpFileConfigTest extends TestCase
      * @return void
      */
     #[Test]
-    public function testExplicitLeadingFileStreamRemainsReadable(): void
-    {
-        file_put_contents($this->tempFile, '<?php return ["initial" => true];');
-        $path = str_replace('\\', '/', $this->tempFile);
-        $input = 'file://' . (str_starts_with($path, '/') ? '' : '/') . $path;
+    #[DataProvider('trailingFileSeparators')]
+    public function testTrailingSeparatorsRetainNativeFileSemantics(
+        string $kind,
+        string $operation,
+        string $separator
+    ): void {
+        mkdir($this->tempDirectory);
+        $file = $this->tempDirectory . '/settings.php';
+        $link = $this->tempDirectory . '/link.php';
+        $input = $file . $separator;
+        $target = null;
+        if ('link target' === $kind) {
+            mkdir($file);
+            $this->createSymlink('settings.php' . $separator, $link);
+            $target = readlink($link);
+            rmdir($file);
+            $input = $link;
+        }
 
-        self::assertTrue((new PhpFileConfig($input))->get('initial'));
+        $content = '<?php return ["initial" => true, "remove" => true];';
+        file_put_contents($file, $content);
+        if ('link input' === $kind) {
+            $this->createSymlink('settings.php', $link);
+            $target = readlink($link);
+            $input = $link . $separator;
+        }
+
+        clearstatcache(true);
+        self::assertFalse(file_exists($input));
+        self::assertFalse(is_file($input));
+        $default = 'get' === $operation ? null : [
+            'fallback' => true,
+        ];
+        $config = new PhpFileConfig($input, persistent: true, defaultConfig: $default);
+        try {
+            if ('get defaults' === $operation) {
+                self::assertSame($default, $config->toArray());
+            } else {
+                if ('get' === $operation) {
+                    $config->get('initial');
+                } elseif ('set' === $operation) {
+                    $config->set('saved', true);
+                } else {
+                    $config->remove('remove');
+                }
+
+                self::fail('A file followed by a separator must not be read or replaced as that file.');
+            }
+        } catch (InvalidArgumentException) {
+            self::assertNotSame('get defaults', $operation);
+        }
+
+        self::assertSame($content, file_get_contents($file));
+        self::assertSame([], glob($this->tempDirectory . '/cfg_*'));
+        if (null !== $target) {
+            self::assertTrue(is_link($link));
+            self::assertSame($target, readlink($link));
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function testPosixTerminalBackslashRemainsAValidFilenameCharacter(): void
+    {
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            self::markTestSkipped('A backslash is a path separator on Windows.');
+        }
+
+        mkdir($this->tempDirectory);
+        $file = $this->tempDirectory . '/settings.php\\';
+        file_put_contents($file, '<?php return ["initial" => true];');
+        $config = new PhpFileConfig($file, persistent: true);
+        self::assertTrue($config->get('initial'));
+        $config->set('saved', true);
+        $config->remove('initial');
+
+        self::assertSame([
+            'saved' => true,
+        ], require $file);
+        self::assertFileDoesNotExist($this->tempDirectory . '/settings.php');
     }
 
     /**
@@ -1085,20 +1244,25 @@ final class PhpFileConfigTest extends TestCase
      * @return void
      */
     #[Test]
-    public function testDirectorySymlinksAreResolvedBeforeParentPathSegments(): void
+    public function testParentPathSegmentsKeepNativeDirectorySymlinkSemantics(): void
     {
         mkdir($this->tempDirectory . '/deep/subdir', 0o777, true);
         $link = $this->tempDirectory . '/alias';
         $this->createSymlink($this->tempDirectory . '/deep/subdir', $link);
         $target = readlink($link);
+        $parent = realpath($link . '/..');
+        self::assertNotFalse($parent);
 
         (new PhpFileConfig($link . '/../missing/settings.php', persistent: true, defaultConfig: []))
             ->set('saved', true);
 
         self::assertSame([
             'saved' => true,
-        ], require $this->tempDirectory . '/deep/missing/settings.php');
-        self::assertDirectoryDoesNotExist($this->tempDirectory . '/missing');
+        ], require $parent . '/missing/settings.php');
+        $unexpected = $parent === realpath($this->tempDirectory)
+            ? $this->tempDirectory . '/deep/missing'
+            : $this->tempDirectory . '/missing';
+        self::assertDirectoryDoesNotExist($unexpected);
         self::assertTrue(is_link($link));
         self::assertSame($target, readlink($link));
     }
@@ -1349,6 +1513,7 @@ final class PhpFileConfigTest extends TestCase
         yield 'new file without metadata functions' => ['stat,filegroup,chgrp', false];
         yield 'existing group already matches without chgrp' => ['chgrp', true];
         yield 'absolute regular file without path helpers' => ['getcwd,readlink', true];
+        yield 'absolute regular file without stream enumeration' => ['stream_get_wrappers', true];
     }
 
     /**
@@ -1359,6 +1524,7 @@ final class PhpFileConfigTest extends TestCase
         foreach (['get', 'set', 'remove'] as $operation) {
             yield 'relative input during ' . $operation => ['getcwd', $operation];
             yield 'symlink input during ' . $operation => ['readlink', $operation];
+            yield 'stream input during ' . $operation => ['stream_get_wrappers', $operation];
         }
     }
 
@@ -1383,6 +1549,9 @@ final class PhpFileConfigTest extends TestCase
         if ('readlink' === $function) {
             $input = $this->tempDirectory . '/link.php';
             $this->createSymlink('settings.php', $input);
+        } elseif ('stream_get_wrappers' === $function) {
+            $path = str_replace('\\', '/', $file);
+            $input = 'file://' . (str_starts_with($path, '/') ? '' : '/') . $path;
         }
 
         $workingDirectory = getcwd();

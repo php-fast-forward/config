@@ -84,6 +84,10 @@ try {
         foreach ($native['directory_checks'] as $case => $passed) {
             check($passed, 'A directory symlink case failed: ' . $case);
         }
+
+        foreach ($native['trailing_checks'] as $case => $result) {
+            check($result['passed'], 'A trailing-separator case failed: ' . $case);
+        }
     }
 
     $qualified = $roots[0] . '/qualified.php';

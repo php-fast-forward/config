@@ -13,6 +13,8 @@ if (! is_string($directory)) {
 }
 
 $drive = substr($directory, 0, 2);
+$directoryChecks = (require __DIR__ . '/dangling-directories.php')($directory);
+$trailingChecks = (require __DIR__ . '/trailing-separators.php')($directory);
 file_put_contents($directory . '/native-plain.php', '<?php return ["plain" => true];');
 $prefix = null;
 $forms = [];
@@ -31,6 +33,7 @@ foreach ([
 
 $result = [
     'php' => \PHP_VERSION,
+    'zts' => \PHP_ZTS,
     'drive' => $drive,
     'native_input_supported' => null !== $prefix,
     'native_forms' => $forms,
@@ -134,6 +137,7 @@ if (null !== $prefix) {
     }
 }
 
-$result['directory_checks'] = (require __DIR__ . '/dangling-directories.php')($directory);
+$result['directory_checks'] = $directoryChecks;
+$result['trailing_checks'] = $trailingChecks;
 
 echo json_encode($result, \JSON_THROW_ON_ERROR);

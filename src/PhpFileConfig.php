@@ -166,7 +166,11 @@ final class PhpFileConfig implements ConfigInterface
     private function mutate(callable $operation): void
     {
         $targetFile = $this->resolveTargetFile();
-        $dir        = \dirname($targetFile);
+        if (str_ends_with($targetFile, '/') || ('\\' === \DIRECTORY_SEPARATOR && str_ends_with($targetFile, '\\'))) {
+            throw InvalidArgumentException::forUnwritableFile($this->file);
+        }
+
+        $dir = \dirname($targetFile);
 
         if (! is_dir($dir)) {
             if (! @mkdir($dir, 0o777, true) && ! is_dir($dir)) {
@@ -305,13 +309,17 @@ final class PhpFileConfig implements ConfigInterface
 
         clearstatcache(true);
         $file = $this->absoluteFile ??= $this->absolutePath($this->file);
-        if (1 === preg_match('~^[a-zA-Z][a-zA-Z0-9+.-]*://~', $file)) {
+        if ($this->isStreamPath($file)) {
             return $file;
         }
 
         $visited = [];
 
         for ($depth = 0; $depth < 64; ++$depth) {
+            if (str_ends_with($file, '/') || ('\\' === \DIRECTORY_SEPARATOR && str_ends_with($file, '\\'))) {
+                return $file;
+            }
+
             $link = $file;
             $suffix = '';
             while (true) {
@@ -354,6 +362,28 @@ final class PhpFileConfig implements ConfigInterface
     }
 
     /**
+     * Recognizes the registered protocols selected by PHP's native stream lookup.
+     *
+     * @param string $path
+     *
+     * @return bool
+     */
+    private function isStreamPath(string $path): bool
+    {
+        if (1 !== preg_match('~^([a-zA-Z0-9+.-]{2,})://~', $path, $matches)) {
+            return false;
+        }
+
+        if (! \function_exists('stream_get_wrappers')) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
+        }
+
+        $wrappers = stream_get_wrappers();
+
+        return \in_array($matches[1], $wrappers, true) || \in_array(strtolower($matches[1]), $wrappers, true);
+    }
+
+    /**
      * Resolves relative paths against their containing directory without using include_path.
      *
      * @param string $path the file or symlink target path
@@ -376,10 +406,7 @@ final class PhpFileConfig implements ConfigInterface
             return $root[0] . $path;
         }
 
-        if (str_starts_with($path, '/') || (null === $directory && 1 === preg_match(
-            '~^[a-zA-Z][a-zA-Z0-9+.-]*://~',
-            $path
-        ))
+        if (str_starts_with($path, '/') || (null === $directory && $this->isStreamPath($path))
             || ('\\' === \DIRECTORY_SEPARATOR && (str_starts_with($path, '\\') || 1 === preg_match(
                 '~^[a-zA-Z]:[\\\\/]~',
                 $path
