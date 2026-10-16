@@ -128,7 +128,7 @@ and leaves the original file intact. New files use
 ``0666 & ~umask()`` and the filesystem's default creation group. Windows does not attempt POSIX
 group reassignment; its native permission behavior applies.
 
-On Windows, single-separator rooted paths such as ``\\settings.php`` or ``/settings.php``
+On Windows, single-separator rooted paths such as ``\settings.php`` or ``/settings.php``
 are anchored to the initial drive or UNC volume on first use. Fully qualified drive,
 UNC, and DOS device paths retain their supplied root.
 
@@ -137,7 +137,7 @@ Supported inputs are anchored to their drive's directory while retaining their r
 suffix, so later symlink retargeting still applies.
 If such a path cannot be resolved, including an existing path unsupported by native PHP, it raises
 ``InvalidArgumentException`` before creating directories, locks, or files. Use a
-fully qualified path such as ``C:\\app\\settings.php`` when creating a new target.
+fully qualified path such as ``C:\app\settings.php`` when creating a new target.
 
 LaminasConfigAggregatorConfig
 -----------------------------

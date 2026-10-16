@@ -44,6 +44,11 @@ return static function (string $directory): array {
                 clearstatcache(true);
                 $nativeExists = file_exists($input);
                 $nativeFile = is_file($input);
+                $nativeDirectory = is_dir($input);
+                $nativeTarget = 'file' === $kind ? null : @readlink($link);
+                $nativeResolved = realpath($input);
+                $operations = [];
+                $defaults = null;
                 $passed = true;
                 if ($nativeFile) {
                     $config = new PhpFileConfig($input, persistent: true);
@@ -70,8 +75,10 @@ return static function (string $directory): array {
                                 $config->remove('remove');
                             }
 
+                            $operations[$operation] = 'returned';
                             $passed = false;
-                        } catch (InvalidArgumentException) {
+                        } catch (InvalidArgumentException $exception) {
+                            $operations[$operation] = $exception::class;
                         }
                     }
 
@@ -80,14 +87,16 @@ return static function (string $directory): array {
                     ]);
                     if ($nativeExists) {
                         try {
-                            $config->toArray();
+                            $defaults = $config->toArray();
                             $passed = false;
-                        } catch (InvalidArgumentException) {
+                        } catch (InvalidArgumentException $exception) {
+                            $defaults = $exception::class;
                         }
                     } else {
+                        $defaults = $config->toArray();
                         $passed = $passed && [
                             'fallback' => true,
-                        ] === $config->toArray();
+                        ] === $defaults;
                     }
 
                     $passed = $passed && $content === file_get_contents($file);
@@ -96,6 +105,12 @@ return static function (string $directory): array {
                 $results[$kind . ' ending ' . $separator] = [
                     'native_exists' => $nativeExists,
                     'native_is_file' => $nativeFile,
+                    'native_is_dir' => $nativeDirectory,
+                    'readlink' => $nativeTarget,
+                    'realpath' => $nativeResolved,
+                    'operations' => $operations,
+                    'defaults' => $defaults,
+                    'bytes_unchanged' => $content === file_get_contents($file),
                     'passed' => $passed && [] === glob($case . '/cfg_*')
                         && ('file' === $kind || is_link($link)),
                 ];
