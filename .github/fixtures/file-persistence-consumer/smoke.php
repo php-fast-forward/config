@@ -88,6 +88,28 @@ try {
         foreach ($native['trailing_checks'] as $case => $result) {
             check($result['passed'], 'A trailing-separator case failed: ' . $case);
         }
+
+        $command = [\PHP_BINARY, '-n', '-d', 'disable_functions=preg_match', __DIR__ . '/resolver-inputs.php'];
+        $process = proc_open($command, [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ], $pipes, $root);
+        check(is_resource($process), 'The disabled-regex subprocess could not start.');
+        fclose($pipes[0]);
+        $output = stream_get_contents($pipes[1]);
+        $errors = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        check(0 === proc_close($process), $errors);
+        $resolver = json_decode($output, true, 512, \JSON_THROW_ON_ERROR);
+        echo 'native resolver inputs: ' . $output . \PHP_EOL;
+        check(false === $resolver['preg_match_available'], 'The subprocess did not disable preg_match.');
+        foreach (['regex_checks', 'nul_checks'] as $group) {
+            foreach ($resolver[$group] as $case => $result) {
+                check($result['passed'], 'A resolver input case failed: ' . $case);
+            }
+        }
     }
 
     $qualified = $roots[0] . '/qualified.php';

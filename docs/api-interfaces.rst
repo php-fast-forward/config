@@ -120,6 +120,9 @@ not select a stream wrapper. Unavailable PHP functions required to resolve a pat
 ``InvalidArgumentException`` before any persistent change.
 Trailing directory separators retain their native meaning, including when supplied by a
 symlink target. A path such as ``settings.php/`` cannot silently select ``settings.php``.
+Paths containing NUL bytes retain missing-file read behavior, including defaults when
+provided. Persistent mutations reject these paths with ``InvalidArgumentException`` before
+creating directories, locks, or files.
 
 Atomic replacements preserve existing permission bits and, on POSIX systems, the existing
 file's group. If the group or permissions cannot be applied to the temporary file, including

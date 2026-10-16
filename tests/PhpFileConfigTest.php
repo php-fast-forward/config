@@ -1038,6 +1038,67 @@ final class PhpFileConfigTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function nulPaths(): iterable
+    {
+        foreach (['terminal', 'ancestor', 'terminal stream', 'ancestor stream'] as $component) {
+            foreach (['get', 'defaults', 'set', 'remove'] as $operation) {
+                yield $component . ' during ' . $operation => [$component, $operation];
+            }
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('nulPaths')]
+    public function testNulPathsRetainMissingReadSemanticsAndRejectPersistentChanges(
+        string $component,
+        string $operation
+    ): void {
+        mkdir($this->tempDirectory);
+        $file = $this->tempDirectory . '/settings.php';
+        $content = '<?php return ["initial" => true];';
+        file_put_contents($file, $content);
+        $input = str_starts_with($component, 'terminal')
+            ? $file . "\0suffix"
+            : $this->tempDirectory . "/missing/invalid\0/settings.php";
+        if (str_ends_with($component, 'stream')) {
+            $path = str_replace('\\', '/', $input);
+            $input = 'file://' . (str_starts_with($path, '/') ? '' : '/') . $path;
+        }
+
+        self::assertFalse(file_exists($input));
+
+        $config = new PhpFileConfig($input, persistent: true, defaultConfig: 'get' === $operation ? null : [
+            'fallback' => true,
+        ]);
+        try {
+            if ('defaults' === $operation) {
+                self::assertSame([
+                    'fallback' => true,
+                ], $config->toArray());
+            } elseif ('set' === $operation) {
+                $config->set('saved', true);
+                self::fail('A NUL path must not be persisted.');
+            } elseif ('remove' === $operation) {
+                $config->remove('fallback');
+                self::fail('A NUL path must not be persisted.');
+            } else {
+                $config->get('initial');
+                self::fail('A NUL path without defaults must not be read.');
+            }
+        } catch (InvalidArgumentException) {
+            self::assertNotSame('defaults', $operation);
+        }
+
+        self::assertSame($content, file_get_contents($file));
+        self::assertCount(1, iterator_to_array(new FilesystemIterator($this->tempDirectory)));
+    }
+
+    /**
      * @return iterable<string, array{string}>
      */
     public static function externallyRetargetedDirectories(): iterable
@@ -1525,6 +1586,7 @@ final class PhpFileConfigTest extends TestCase
             yield 'relative input during ' . $operation => ['getcwd', $operation];
             yield 'symlink input during ' . $operation => ['readlink', $operation];
             yield 'stream input during ' . $operation => ['stream_get_wrappers', $operation];
+            yield 'stream input without regex during ' . $operation => ['preg_match', $operation];
         }
     }
 
@@ -1549,7 +1611,7 @@ final class PhpFileConfigTest extends TestCase
         if ('readlink' === $function) {
             $input = $this->tempDirectory . '/link.php';
             $this->createSymlink('settings.php', $input);
-        } elseif ('stream_get_wrappers' === $function) {
+        } elseif ('stream_get_wrappers' === $function || 'preg_match' === $function) {
             $path = str_replace('\\', '/', $file);
             $input = 'file://' . (str_starts_with($path, '/') ? '' : '/') . $path;
         }
@@ -1611,6 +1673,118 @@ final class PhpFileConfigTest extends TestCase
         } finally {
             chdir($workingDirectory);
         }
+    }
+
+    /**
+     * @return iterable<string, array{bool, string}>
+     */
+    public static function filesystemOperationsWithoutRegex(): iterable
+    {
+        foreach ([false, true] as $relative) {
+            foreach (['get', 'set', 'remove'] as $operation) {
+                yield ($relative ? 'relative ' : 'absolute ') . $operation => [$relative, $operation];
+            }
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('filesystemOperationsWithoutRegex')]
+    public function testPosixFilesystemPathsDoNotRequireRegex(bool $relative, string $operation): void
+    {
+        if ('\\' === \DIRECTORY_SEPARATOR || ! \function_exists('proc_open')) {
+            self::markTestSkipped('POSIX paths and subprocess support are required.');
+        }
+
+        mkdir($this->tempDirectory);
+        $file = $this->tempDirectory . '/settings.php';
+        $content = '<?php return ["initial" => true];';
+        file_put_contents($file, $content);
+        $workingDirectory = getcwd();
+        try {
+            chdir($this->tempDirectory);
+            $result = $this->runWithDisabledMetadataFunctions(
+                $relative ? 'settings.php' : $file,
+                $operation,
+                'preg_match'
+            );
+            self::assertFalse($result['function_available']);
+            self::assertNull($result['exception'], $result['message'] ?? '');
+            $expected = match ($operation) {
+                'set' => [
+                    'initial' => true,
+                    'saved' => true,
+                ],
+                'remove' => [],
+                default => [
+                    'initial' => true,
+                ],
+            };
+            self::assertSame($expected, require $file);
+            self::assertSame([], glob($this->tempDirectory . '/cfg_*'));
+        } finally {
+            chdir($workingDirectory);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function unavailableComponentFunctions(): iterable
+    {
+        foreach (['dirname', 'basename'] as $function) {
+            foreach (['file', 'missing', 'stream', 'terminal'] as $kind) {
+                yield $kind . ' without ' . $function => [$function, $kind];
+            }
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('unavailableComponentFunctions')]
+    public function testPathComponentsRequireHelpersOnlyDuringTraversal(string $function, string $kind): void
+    {
+        if (! \function_exists('proc_open')) {
+            self::markTestSkipped('Subprocess support is required to disable path helpers.');
+        }
+
+        mkdir($this->tempDirectory);
+        $file = $this->tempDirectory . '/settings.php';
+        $content = '<?php return ["initial" => true];';
+        file_put_contents($file, $content);
+        $path = str_replace('\\', '/', $file);
+        $input = match ($kind) {
+            'stream' => 'file://' . (str_starts_with($path, '/') ? '' : '/') . $path,
+            'terminal' => $file . '/',
+            'missing' => $this->tempDirectory . '/missing/settings.php',
+            default => $file,
+        };
+        $vendor = \dirname((new ReflectionClass(ClassLoader::class))->getFileName(), 2);
+        $output = $this->runPhpSubprocess([
+            '-d',
+            'disable_functions=' . $function,
+            __DIR__ . '/Stub/disabled-component-functions.php',
+            $vendor,
+            __DIR__ . '/../src',
+            $input,
+            $kind,
+            $function,
+        ]);
+        $result = json_decode($output, true, 512, \JSON_THROW_ON_ERROR);
+        self::assertFalse($result['function_available']);
+        if ('stream' === $kind || 'terminal' === $kind) {
+            self::assertNull($result['exception'], $result['message'] ?? '');
+            self::assertTrue($result['value']);
+        } else {
+            self::assertSame(InvalidArgumentException::class, $result['exception'], $result['message'] ?? '');
+        }
+
+        self::assertSame($content, file_get_contents($file));
+        self::assertCount(1, iterator_to_array(new FilesystemIterator($this->tempDirectory)));
     }
 
     /**

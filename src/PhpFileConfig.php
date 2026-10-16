@@ -166,7 +166,8 @@ final class PhpFileConfig implements ConfigInterface
     private function mutate(callable $operation): void
     {
         $targetFile = $this->resolveTargetFile();
-        if (str_ends_with($targetFile, '/') || ('\\' === \DIRECTORY_SEPARATOR && str_ends_with($targetFile, '\\'))) {
+        if (str_contains($targetFile, "\0") || str_ends_with($targetFile, '/')
+            || ('\\' === \DIRECTORY_SEPARATOR && str_ends_with($targetFile, '\\'))) {
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
@@ -303,6 +304,10 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function resolveTargetFile(): string
     {
+        if (str_contains($this->file, "\0")) {
+            return $this->file;
+        }
+
         if (! \function_exists('realpath') || ! \function_exists('clearstatcache') || ! \function_exists('is_link')) {
             throw InvalidArgumentException::forUnreadableFile($this->file);
         }
@@ -322,6 +327,10 @@ final class PhpFileConfig implements ConfigInterface
         for ($depth = 0; $depth < 64; ++$depth) {
             if (str_ends_with($file, '/') || ('\\' === \DIRECTORY_SEPARATOR && str_ends_with($file, '\\'))) {
                 return $file;
+            }
+
+            if (! \function_exists('dirname') || ! \function_exists('basename')) {
+                throw InvalidArgumentException::forUnreadableFile($this->file);
             }
 
             $link = $file;
@@ -374,6 +383,14 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function isStreamPath(string $path): bool
     {
+        if (! str_contains($path, '://')) {
+            return false;
+        }
+
+        if (! \function_exists('preg_match')) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
+        }
+
         if (1 !== preg_match('~^([a-zA-Z0-9+.-]{2,})://~', $path, $matches)) {
             return false;
         }
@@ -399,7 +416,7 @@ final class PhpFileConfig implements ConfigInterface
     {
         if ('\\' === \DIRECTORY_SEPARATOR && 1 === strspn($path, '\\/')) {
             $directory ??= \function_exists('getcwd') ? getcwd() : false;
-            if (false === $directory || 1 !== preg_match(
+            if (false === $directory || ! \function_exists('preg_match') || 1 !== preg_match(
                 '~^(?:[a-zA-Z]:|[\\\\/]{2}(?:[?.][\\\\/]UNC[\\\\/])?[^\\\\/]+[\\\\/][^\\\\/]+)~i',
                 $directory,
                 $root
@@ -411,11 +428,18 @@ final class PhpFileConfig implements ConfigInterface
         }
 
         if (str_starts_with($path, '/') || (null === $directory && $this->isStreamPath($path))
-            || ('\\' === \DIRECTORY_SEPARATOR && (str_starts_with($path, '\\') || 1 === preg_match(
-                '~^[a-zA-Z]:[\\\\/]~',
-                $path
-            )))) {
+            || ('\\' === \DIRECTORY_SEPARATOR && str_starts_with($path, '\\'))) {
             return $path;
+        }
+
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            if (! \function_exists('preg_match')) {
+                throw InvalidArgumentException::forUnreadableFile($this->file);
+            }
+
+            if (1 === preg_match('~^[a-zA-Z]:[\\\\/]~', $path)) {
+                return $path;
+            }
         }
 
         if ('\\' === \DIRECTORY_SEPARATOR && 1 === preg_match('~^[a-zA-Z]:~', $path)) {
