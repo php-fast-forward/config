@@ -155,13 +155,9 @@ final class PhpFileConfig implements ConfigInterface
     }
 
     /**
-     * Executes a persistent mutation under an exclusive process lock.
+     * Mutates the resolved target under an exclusive process lock.
      *
      * @param callable(ConfigInterface): void $operation
-     *
-     * @return void
-     *
-     * @throws InvalidArgumentException if the lock or file cannot be written
      */
     private function mutate(callable $operation): void
     {
@@ -171,20 +167,7 @@ final class PhpFileConfig implements ConfigInterface
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        $dir = \dirname($targetFile);
-
-        if (! is_dir($dir)) {
-            if (! @mkdir($dir, 0o777, true) && ! is_dir($dir)) {
-                throw InvalidArgumentException::forUnwritableFile($this->file);
-            }
-        } elseif (! is_writable($dir)) {
-            throw InvalidArgumentException::forUnwritableFile($this->file);
-        }
-
-        if (file_exists($targetFile) && (! is_file($targetFile) || ! is_writable($targetFile))) {
-            throw InvalidArgumentException::forUnwritableFile($this->file);
-        }
-
+        $dir = $this->prepareWritableTarget($targetFile);
         $lockPath = $dir . '/.' . basename($targetFile) . '.lock';
         $lockFp   = @fopen($lockPath, 'c+');
 
@@ -193,36 +176,40 @@ final class PhpFileConfig implements ConfigInterface
         }
 
         try {
-            if (! @flock($lockFp, \LOCK_EX)) {
-                throw InvalidArgumentException::forUnwritableFile($this->file);
-            }
-
-            try {
-                $config = $this->loadConfig($targetFile);
-                $operation($config);
-                $this->dump($config->toArray(), $targetFile);
-                $this->config = $config;
-            } finally {
-                @flock($lockFp, \LOCK_UN);
-            }
+            $this->mutateUnderLock($lockFp, $targetFile, $operation);
         } finally {
             @fclose($lockFp);
         }
     }
 
     /**
-     * Dumps the configuration array to the PHP file.
-     *
-     * @param array<array-key, mixed> $data the configuration data to write
-     * @param string|null $targetFile optional target file override (e.g. resolved symlink target)
-     *
-     * @return void
-     *
-     * @throws InvalidArgumentException if the file or directory is not writable, or cannot be exported
+     * @param resource $lockFp
+     * @param string $targetFile
+     * @param callable(ConfigInterface): void $operation
      */
-    private function dump(array $data, ?string $targetFile = null): void
+    private function mutateUnderLock($lockFp, string $targetFile, callable $operation): void
     {
-        $targetFile ??= $this->resolveTargetFile();
+        if (! @flock($lockFp, \LOCK_EX)) {
+            throw InvalidArgumentException::forUnwritableFile($this->file);
+        }
+
+        try {
+            $config = $this->loadConfig($targetFile);
+            $operation($config);
+            $this->dump($config->toArray(), $targetFile);
+            $this->config = $config;
+        } finally {
+            @flock($lockFp, \LOCK_UN);
+        }
+    }
+
+    /**
+     * @param string $targetFile
+     *
+     * @return string
+     */
+    private function prepareWritableTarget(string $targetFile): string
+    {
         $dir = \dirname($targetFile);
 
         if (! is_dir($dir)) {
@@ -237,26 +224,20 @@ final class PhpFileConfig implements ConfigInterface
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
 
-        $existingMetadata = null;
-        if (file_exists($targetFile)) {
-            if (! \function_exists('stat')) {
-                throw InvalidArgumentException::forUnwritableFile($this->file);
-            }
+        return $dir;
+    }
 
-            $existingMetadata = @stat($targetFile);
-            if (false === $existingMetadata) {
-                throw InvalidArgumentException::forUnwritableFile($this->file);
-            }
-        }
-
-        try {
-            $exported = VarExporter::export($data);
-        } catch (Throwable $throwable) {
-            throw new InvalidArgumentException($throwable->getMessage(), (int) $throwable->getCode(), $throwable);
-        }
-
-        $content = "<?php\n\ndeclare(strict_types=1);\n\nreturn {$exported};\n";
-
+    /**
+     * Publishes configuration atomically after revalidating the locked target.
+     *
+     * @param array<array-key, mixed> $data
+     * @param string $targetFile
+     */
+    private function dump(array $data, string $targetFile): void
+    {
+        $dir = $this->prepareWritableTarget($targetFile);
+        $existingMetadata = $this->readExistingMetadata($targetFile);
+        $content = $this->exportContent($data);
         $tmpFile = tempnam($dir, 'cfg_');
         if (false === $tmpFile) {
             throw InvalidArgumentException::forUnwritableFile($this->file);
@@ -268,24 +249,8 @@ final class PhpFileConfig implements ConfigInterface
                 throw InvalidArgumentException::forUnwritableFile($this->file);
             }
 
-            if (null !== $existingMetadata && '\\' !== \DIRECTORY_SEPARATOR) {
-                if (! \function_exists('filegroup')) {
-                    throw InvalidArgumentException::forUnwritableFile($this->file);
-                }
-
-                $temporaryGroup = @filegroup($tmpFile);
-                if (false === $temporaryGroup) {
-                    throw InvalidArgumentException::forUnwritableFile($this->file);
-                }
-
-                if ($temporaryGroup !== $existingMetadata['gid']
-                    && (! \function_exists('chgrp') || ! @chgrp($tmpFile, $existingMetadata['gid']))) {
-                    throw InvalidArgumentException::forUnwritableFile($this->file);
-                }
-            }
-
-            $mode = null !== $existingMetadata ? ($existingMetadata['mode'] & 0o777) : (0o666 & ~umask());
-            if (! @chmod($tmpFile, $mode) || ! @rename($tmpFile, $targetFile)) {
+            $this->applyTemporaryMetadata($tmpFile, $existingMetadata);
+            if (! @rename($tmpFile, $targetFile)) {
                 throw InvalidArgumentException::forUnwritableFile($this->file);
             }
         } finally {
@@ -294,6 +259,71 @@ final class PhpFileConfig implements ConfigInterface
 
         if (\function_exists('opcache_invalidate')) {
             @opcache_invalidate($targetFile, true);
+        }
+    }
+
+    /**
+     * @param string $targetFile
+     *
+     * @return array<array-key, int>|null
+     */
+    private function readExistingMetadata(string $targetFile): ?array
+    {
+        if (! file_exists($targetFile)) {
+            return null;
+        }
+
+        if (! \function_exists('stat')) {
+            throw InvalidArgumentException::forUnwritableFile($this->file);
+        }
+
+        $metadata = @stat($targetFile);
+        if (false === $metadata) {
+            throw InvalidArgumentException::forUnwritableFile($this->file);
+        }
+
+        return $metadata;
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     */
+    private function exportContent(array $data): string
+    {
+        try {
+            $exported = VarExporter::export($data);
+        } catch (Throwable $throwable) {
+            throw new InvalidArgumentException($throwable->getMessage(), (int) $throwable->getCode(), $throwable);
+        }
+
+        return "<?php\n\ndeclare(strict_types=1);\n\nreturn {$exported};\n";
+    }
+
+    /**
+     * @param string $tmpFile
+     * @param array<array-key, int>|null $existingMetadata
+     */
+    private function applyTemporaryMetadata(string $tmpFile, ?array $existingMetadata): void
+    {
+        if (null !== $existingMetadata && '\\' !== \DIRECTORY_SEPARATOR) {
+            if (! \function_exists('filegroup')) {
+                throw InvalidArgumentException::forUnwritableFile($this->file);
+            }
+
+            $temporaryGroup = @filegroup($tmpFile);
+            if (false === $temporaryGroup) {
+                throw InvalidArgumentException::forUnwritableFile($this->file);
+            }
+
+            if ($temporaryGroup !== $existingMetadata['gid']
+                && (! \function_exists('chgrp') || ! @chgrp($tmpFile, $existingMetadata['gid']))) {
+                throw InvalidArgumentException::forUnwritableFile($this->file);
+            }
+        }
+
+        $mode = null !== $existingMetadata ? ($existingMetadata['mode'] & 0o777) : (0o666 & ~umask());
+        if (! @chmod($tmpFile, $mode)) {
+            throw InvalidArgumentException::forUnwritableFile($this->file);
         }
     }
 
@@ -322,6 +352,16 @@ final class PhpFileConfig implements ConfigInterface
             return $file;
         }
 
+        return $this->followSymlinks($file);
+    }
+
+    /**
+     * @param string $file
+     *
+     * @return string
+     */
+    private function followSymlinks(string $file): string
+    {
         $visited = [];
 
         for ($depth = 0; $depth < 64; ++$depth) {
@@ -333,28 +373,14 @@ final class PhpFileConfig implements ConfigInterface
                 throw InvalidArgumentException::forUnreadableFile($this->file);
             }
 
-            $link = $file;
-            $suffix = '';
-            while (true) {
-                $directory = realpath(\dirname($link));
-                if (false !== $directory) {
-                    $link = $directory . \DIRECTORY_SEPARATOR . basename($link);
-                }
+            $component = $this->findSymlinkComponent($file);
+            $link = $component['path'];
+            $suffix = $component['suffix'];
+            if (! $component['linked']) {
+                $file = $link . $suffix;
+                $resolved = realpath($file);
 
-                if (is_link($link)) {
-                    break;
-                }
-
-                $parent = \dirname($link);
-                if (false !== $directory || $parent === $link) {
-                    $file = $link . $suffix;
-                    $resolved = realpath($file);
-
-                    return false !== $resolved ? $resolved : $file;
-                }
-
-                $suffix = \DIRECTORY_SEPARATOR . basename($link) . $suffix;
-                $link = $parent;
+                return false !== $resolved ? $resolved : $file;
             }
 
             $file = $link . $suffix;
@@ -372,6 +398,43 @@ final class PhpFileConfig implements ConfigInterface
         }
 
         throw InvalidArgumentException::forUnreadableFile($this->file);
+    }
+
+    /**
+     * @param string $file
+     *
+     * @return array{path: string, suffix: string, linked: bool}
+     */
+    private function findSymlinkComponent(string $file): array
+    {
+        $link = $file;
+        $suffix = '';
+        while (true) {
+            $directory = realpath(\dirname($link));
+            if (false !== $directory) {
+                $link = $directory . \DIRECTORY_SEPARATOR . basename($link);
+            }
+
+            if (is_link($link)) {
+                return [
+                    'path' => $link,
+                    'suffix' => $suffix,
+                    'linked' => true,
+                ];
+            }
+
+            $parent = \dirname($link);
+            if (false !== $directory || $parent === $link) {
+                return [
+                    'path' => $link,
+                    'suffix' => $suffix,
+                    'linked' => false,
+                ];
+            }
+
+            $suffix = \DIRECTORY_SEPARATOR . basename($link) . $suffix;
+            $link = $parent;
+        }
     }
 
     /**
@@ -415,16 +478,7 @@ final class PhpFileConfig implements ConfigInterface
     private function absolutePath(string $path, ?string $directory = null): string
     {
         if ('\\' === \DIRECTORY_SEPARATOR && 1 === strspn($path, '\\/')) {
-            $directory ??= \function_exists('getcwd') ? getcwd() : false;
-            if (false === $directory || ! \function_exists('preg_match') || 1 !== preg_match(
-                '~^(?:[a-zA-Z]:|[\\\\/]{2}(?:[?.][\\\\/]UNC[\\\\/])?[^\\\\/]+[\\\\/][^\\\\/]+)~i',
-                $directory,
-                $root
-            )) {
-                throw InvalidArgumentException::forUnreadableFile($this->file);
-            }
-
-            return $root[0] . $path;
+            return $this->anchorWindowsRootedPath($path, $directory);
         }
 
         if (str_starts_with($path, '/') || (null === $directory && $this->isStreamPath($path))
@@ -440,24 +494,10 @@ final class PhpFileConfig implements ConfigInterface
             if (1 === preg_match('~^[a-zA-Z]:[\\\\/]~', $path)) {
                 return $path;
             }
-        }
 
-        if ('\\' === \DIRECTORY_SEPARATOR && 1 === preg_match('~^[a-zA-Z]:~', $path)) {
-            if (false === realpath($path)) {
-                throw InvalidArgumentException::forUnreadableFile($this->file);
+            if (1 === preg_match('~^[a-zA-Z]:~', $path)) {
+                return $this->anchorWindowsDriveRelativePath($path);
             }
-
-            $drive = substr($path, 0, 2);
-            $directory = \function_exists('getcwd') ? getcwd() : false;
-            if (false === $directory || 0 !== strncasecmp($drive, $directory, 2)) {
-                $directory = realpath($drive . '.');
-            }
-
-            if (false === $directory) {
-                throw InvalidArgumentException::forUnreadableFile($this->file);
-            }
-
-            return rtrim($directory, '\\/') . \DIRECTORY_SEPARATOR . substr($path, 2);
         }
 
         $directory ??= \function_exists('getcwd') ? getcwd() : false;
@@ -466,5 +506,49 @@ final class PhpFileConfig implements ConfigInterface
         }
 
         return $directory . \DIRECTORY_SEPARATOR . $path;
+    }
+
+    /**
+     * @param string $path
+     * @param string|null $directory
+     *
+     * @return string
+     */
+    private function anchorWindowsRootedPath(string $path, ?string $directory): string
+    {
+        $directory ??= \function_exists('getcwd') ? getcwd() : false;
+        if (false === $directory || ! \function_exists('preg_match') || 1 !== preg_match(
+            '~^(?:[a-zA-Z]:|[\\\\/]{2}(?:[?.][\\\\/]UNC[\\\\/])?[^\\\\/]+[\\\\/][^\\\\/]+)~i',
+            $directory,
+            $root
+        )) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
+        }
+
+        return $root[0] . $path;
+    }
+
+    /**
+     * @param string $path
+     *
+     * @return string
+     */
+    private function anchorWindowsDriveRelativePath(string $path): string
+    {
+        if (false === realpath($path)) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
+        }
+
+        $drive = substr($path, 0, 2);
+        $directory = \function_exists('getcwd') ? getcwd() : false;
+        if (false === $directory || 0 !== strncasecmp($drive, $directory, 2)) {
+            $directory = realpath($drive . '.');
+        }
+
+        if (false === $directory) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
+        }
+
+        return rtrim($directory, '\\/') . \DIRECTORY_SEPARATOR . substr($path, 2);
     }
 }
