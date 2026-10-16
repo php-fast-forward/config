@@ -59,7 +59,7 @@ class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInt
             throw InvalidArgumentException::forUnreadableDirectory($this->directory);
         }
 
-        $pattern = mb_rtrim($this->directory, \DIRECTORY_SEPARATOR) . \DIRECTORY_SEPARATOR . static::PATTERN;
+        $pattern = rtrim($this->directory, \DIRECTORY_SEPARATOR) . \DIRECTORY_SEPARATOR . static::PATTERN;
 
         parent::__construct(
             providers: [new PhpFileProvider($pattern)],
