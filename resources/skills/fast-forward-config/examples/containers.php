@@ -40,6 +40,18 @@ same('Store', $config->get('app.name'), 'Raw configuration lookup failed.');
 same('Store', $adapter->get('config.app.name'), 'Prefixed PSR-11 lookup failed.');
 same($config, $adapter->get('config'), 'The config alias must return the wrapped instance.');
 same($config, $adapter->get(ConfigInterface::class), 'The interface alias must return the wrapped instance.');
+same(true, $adapter->has(ConfigContainer::class), 'The adapter must expose its own class.');
+same($adapter, $adapter->get(ConfigContainer::class), 'The own-class binding must resolve the adapter.');
+foreach (['config.', 'configuration.app.name'] as $invalidId) {
+    same(false, $adapter->has($invalidId), 'An invalid prefix or empty path must not exist.');
+    $invalidCaught = false;
+    try {
+        $adapter->get($invalidId);
+    } catch (NotFoundExceptionInterface) {
+        $invalidCaught = true;
+    }
+    same(true, $invalidCaught, 'Invalid identifiers must use the PSR-11 not-found contract.');
+}
 same(false, $adapter->has('config.app.absent'), 'An absent leaf must not exist.');
 $caught = false;
 try {

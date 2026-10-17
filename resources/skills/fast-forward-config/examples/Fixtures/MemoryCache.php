@@ -19,16 +19,18 @@ declare(strict_types=1);
 namespace FastForward\Config\SkillExamples\Fixtures;
 
 use DateInterval;
-use InvalidArgumentException;
 use Psr\SimpleCache\CacheInterface;
-use Psr\SimpleCache\InvalidArgumentException as CacheInvalidArgumentException;
 
 /**
- * Example-only retaining cache. It deliberately has no TTL implementation.
+ * Example-only retaining cache. It records TTL arguments without expiring entries.
  */
 final class MemoryCache implements CacheInterface
 {
     private array $values = [];
+
+    public array $ttls = [];
+
+    public bool $acceptWrites = true;
 
     /**
      * @param string $key
@@ -53,6 +55,11 @@ final class MemoryCache implements CacheInterface
     public function set(string $key, mixed $value, int|DateInterval|null $ttl = null): bool
     {
         $this->validateKey($key);
+        $this->ttls[$key] = $ttl;
+        if (! $this->acceptWrites) {
+            return false;
+        }
+
         $this->values[$key] = $value;
 
         return true;
@@ -143,9 +150,9 @@ final class MemoryCache implements CacheInterface
     private function validateKey(string $key): void
     {
         if ('' === $key || false !== strpbrk($key, '{}()/\\@:')) {
-            throw new class (
+            throw new InvalidCacheKeyException(
                 'The example requires a nonempty PSR-16 key without reserved characters.'
-            ) extends InvalidArgumentException implements CacheInvalidArgumentException {};
+            );
         }
     }
 }

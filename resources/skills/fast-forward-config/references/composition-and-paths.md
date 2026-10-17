@@ -37,6 +37,6 @@ $config->get('app.options');            // ArrayConfig, not []
 $config->get('app')->toArray();         // ['label' => null, 'options' => []]
 ```
 
-The returned map is an independent wrapper; call `$config->set('app.label', 'Store')` to update the owner. There is no key escaping: `db/host` and `db.host` select the same path. `a..b` selects an empty middle segment. An empty string passed to `has/get/remove` throws `FastForward\Config\Exception\InvalidArgumentException` on 1.6.0. `set('')` can store an empty root key, visible through export but inaccessible through that empty lookup path; avoid such keys in application configuration.
+The returned map is an independent wrapper; call `$config->set('app.label', 'Store')` to update the owner. There is no key escaping: `db/host` and `db.host` select the same path. `a..b` selects an empty middle segment. An empty string passed to `has/get/remove` throws `FastForward\Config\Exception\InvalidArgumentException`. `set('')` can store an empty root key, visible through export but inaccessible through that empty lookup path; avoid such keys in application configuration.
 
 ArrayAccess delegates to those operations. `isset` returns true for present nulls. `toArray()` preserves nested shape; flattened iteration omits empty arrays and does not round-trip collection boundaries.

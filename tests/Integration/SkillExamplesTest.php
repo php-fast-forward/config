@@ -43,7 +43,7 @@ final class SkillExamplesTest extends TestCase
         $root = \dirname(__DIR__, 2);
         $process = new Process([
             \PHP_BINARY,
-            $root . '/skills/fast-forward-config/examples/' . $example . '.php',
+            $root . '/resources/skills/fast-forward-config/examples/' . $example . '.php',
             $root . '/vendor/autoload.php',
         ], $root);
         $process->setTimeout(30);
@@ -58,6 +58,7 @@ final class SkillExamplesTest extends TestCase
      */
     public static function examples(): iterable
     {
+        yield 'application' => ['application', 'application: ok'];
         yield 'composition' => ['composition', 'composition: ok'];
         yield 'sources' => ['sources', 'sources: ok'];
         yield 'caching' => ['caching', 'caching: ok'];

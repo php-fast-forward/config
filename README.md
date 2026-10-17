@@ -160,12 +160,15 @@ config/
 
 ## Agent skill
 
-The portable [fast-forward-config skill](skills/fast-forward-config/SKILL.md)
+The portable [fast-forward-config skill](resources/skills/fast-forward-config/SKILL.md)
 guides coding agents consuming the library, including version checks, composition,
-paths, persistence, cache identities and PSR-11 integration. It was added after
-v1.6.0; use a reviewed revision containing it until a release bundles the package.
-See the [installation guide](docs/advanced/agent-skill.rst) for project-local
-copies, opt-in global installation, pinned assisted commands, updates and removal.
+paths, persistence, cache identities and PSR-11 integration. Its supported
+contract is `fast-forward/config ^1.7` on PHP 8.3+; inspect the application's
+installed version before selecting APIs. See the
+[installation guide](docs/advanced/agent-skill.rst) for manual project/global
+copies, optional `llm/skills` project synchronization, pinned Skills CLI commands,
+updates, rollback and removal. Composer ships the source files; the consumer
+chooses installation and activation.
 
 ## 🛡 License
 

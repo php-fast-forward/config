@@ -23,6 +23,7 @@ use FastForward\Config\CachedConfig;
 use FastForward\Config\SkillExamples\Fixtures\MemoryCache;
 
 require __DIR__ . '/bootstrap.php';
+require __DIR__ . '/Fixtures/InvalidCacheKeyException.php';
 require __DIR__ . '/Fixtures/MemoryCache.php';
 
 $cache = new MemoryCache();
@@ -54,5 +55,28 @@ same('other', $other->get('app.env'), 'Separate source identities must remain is
 $cache->delete('storefront.config.v1');
 $rebuilt = new CachedConfig($cache, $source, cacheKey: 'storefront.config.v1');
 same('production', $rebuilt->get('app.env'), 'Explicit invalidation must allow reconstruction.');
+
+same(null, $cache->ttls['storefront.config.v1'], 'An explicit key must preserve the backend default TTL.');
+$isolatedCache = new MemoryCache();
+$first = new CachedConfig($isolatedCache, new ArrayConfig(['value' => 'first']), persistent: true);
+$second = new CachedConfig($isolatedCache, new ArrayConfig(['value' => 'second']));
+same('first', $first->get('value'), 'An isolated source must resolve.');
+same('second', $second->get('value'), 'Default keys must not collide across wrappers.');
+$first->set('value', 'changed');
+$first->remove('value');
+same([300, 300], array_values($isolatedCache->ttls), 'Isolated writes must use a bounded TTL.');
+
+$declining = new MemoryCache();
+$declining->acceptWrites = false;
+$failed = new CachedConfig($declining, new ArrayConfig(['value' => 'available']), persistent: true);
+same('available', $failed->get('value'), 'A declined initial write must not discard source data.');
+$caught = false;
+try {
+    $failed->set('value', 'local-recovery');
+} catch (\RuntimeException) {
+    $caught = true;
+}
+same(true, $caught, 'A declined persistent write must be reported.');
+same('local-recovery', $failed->get('value'), 'The local mutation must remain available for recovery.');
 
 echo 'caching: ok', \PHP_EOL;

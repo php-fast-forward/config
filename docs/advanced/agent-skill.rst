@@ -1,40 +1,134 @@
 Agent skill
 ===========
 
-The portable ``fast-forward-config`` skill guides agents consuming this library:
-source composition, dot paths, mutation, files/providers, persistence, caching
-and PSR-11 integration. Its entrypoint is
-``skills/fast-forward-config/SKILL.md``. Copy the complete directory, including
-references, examples and ``LICENSE``.
+The portable ``fast-forward-config`` skill supports ``fast-forward/config ^1.7``
+on PHP 8.3+. Earlier versions are outside this supported contract. Inspect the
+application's installed package before using its guidance; do not upgrade
+production dependencies solely to obtain instructions.
 
-Availability and versions
--------------------------
+Composer distributions include the complete package at
+``vendor/fast-forward/config/resources/skills/fast-forward-config``:
+``SKILL.md``, references, executable examples and MIT ``LICENSE``.
+Shipping files, copying them into a discovery root and activating a skill in an
+agent session are separate steps. Composer suggestions are not installed
+automatically.
 
-This skill was added after **v1.6.0**. That release is the API baseline for the
-examples and does not contain the skill directory. Until a release bundles it,
-use a reviewed checkout or full immutable Git revision containing it.
-Do not treat a moving branch as a pinned release.
+Project scope is the default for reviewable team configuration. Global copies
+remain an explicit consumer choice. Record the package version or immutable
+source revision and preserve the application's existing discovery configuration.
 
-Once a release bundles it, Composer makes the files available under
-``vendor/fast-forward/config/skills/fast-forward-config``. Composer does not
-activate the skill automatically. No production dependency, Composer plugin,
-automatic setup or generated ``AGENTS.md`` is needed.
-
-The agent inspects installed versions before choosing APIs. The baseline
-advertises PHP 8.3, but its directory implementation requires ``mb_rtrim()``
-(PHP 8.4+) and its config container needs mbstring. The bundled examples
-document these and other 1.6.0 limitations instead of assuming pending fixes.
-
-Project-local by default, global by choice
+Optional Composer project synchronization
 -----------------------------------------
 
-Prefer a **project-local copy** for a team. Review and commit it with the
-application, record its source version/full revision, and update it deliberately.
-``composer.lock`` pins the library source; copied skills have their own lifecycle.
+The optional `llm/skills <https://github.com/roxblnfk/skills>`_ plugin is
+development tooling. Config only advertises
+``extra.skills.source: resources/skills`` and suggests the plugin; it does not
+require, enable or grant approval to it.
 
-A **global copy** is opt-in for use across projects. It still needs to inspect
-each project's library version. Avoid conflicting duplicate copies; discovery
-and precedence depend on the agent.
+For a new consumer setup, create ``skills.json`` **before installing or enabling
+the plugin and before its first sync**:
+
+.. code-block:: json
+
+   {
+     "target": ".agents/skills",
+     "aliases": [],
+     "discovery": false,
+     "auto-sync": true,
+     "vendor-sources": false,
+     "dependencies": {
+       "composer": {
+         "trusted": ["fast-forward/config"],
+         "trusted-replace": true
+       }
+     }
+   }
+
+This narrowly selects Config, replaces implicit dependency trust and disables
+remote vendor sources. ``aliases: []`` requests no additional host-directory
+links. Merge these choices into existing configuration: preserve deliberate
+aliases, unrelated dependencies and plugin approvals. A team may intentionally
+trust ``fast-forward/*``, but that broader trust is not required.
+Claude Code-only consumers can select ``.claude/skills`` as the target.
+
+With authority to install and approve this project plugin, run:
+
+.. code-block:: sh
+
+   composer config allow-plugins.llm/skills true
+   composer require --dev 'llm/skills:^1.15'
+   composer skills:show
+
+Plugin approval allows Composer to execute code; the donor library cannot grant
+it on the consumer's behalf. Preserve other ``allow-plugins`` entries.
+Noninteractive approval must already be explicit. Commit the intended
+``composer.json``, lockfile and ``skills.json`` according to project policy.
+Approved install/update runs synchronize trusted installed donors without an
+additional post-install hook.
+
+For deliberate synchronization only, set ``auto-sync: false`` before installing
+the plugin, then inspect and apply:
+
+.. code-block:: sh
+
+   composer skills:show
+   composer skills:update fast-forward/config --dry-run
+   composer skills:update fast-forward/config
+
+Naming a donor selects/trusts it for that run; it does not test the automatic
+allowlist policy. With Composer 2.10.3 and llm/skills 1.15.0, ``--no-scripts``
+alone still allowed automatic synchronization. ``auto-sync: false`` suppresses
+the automatic copy; ``--no-plugins`` prevents plugin loading. Recheck behavior
+when changing tool versions and inspect copied bytes as well as exit status.
+
+Synchronization ownership and removal
+-------------------------------------
+
+Ordinary llm/skills 1.15 synchronization merges into the destination:
+
+- Incoming same-path files overwrite local edits.
+- Extra local files and files removed upstream remain.
+- Removing the donor or plugin leaves existing skill copies behind.
+- A missing or moved donor path does not remove an old installed copy.
+
+Treat the copied package as donor-managed. Make durable edits in the donor or a
+separately named consumer-owned skill. Inspect diffs after library/tool updates.
+
+Cleanup is separate and potentially destructive. Preview first:
+
+.. code-block:: sh
+
+   composer skills:update --clean --dry-run
+
+An unscoped clean can delete every skill in the target, including handwritten
+ones. Noninteractive execution must not be assumed to prompt. A scoped clean
+only reinstalls the donors selected by that run; it cannot identify an already
+removed donor. Inventory affected packages and archive exact stale directories
+outside discovery before authorized cleanup. Do not add a blanket cleanup hook.
+
+Manual project/global installation
+----------------------------------
+
+Choose one source and destination from the consumer project root:
+
+.. code-block:: sh
+
+   skill_source="vendor/fast-forward/config/resources/skills/fast-forward-config"
+   skill_target=".agents/skills/fast-forward-config"
+   # Explicit global Codex alternative:
+   # skill_target="$HOME/.agents/skills/fast-forward-config"
+   # Claude Code: .claude/skills, or its explicit home counterpart.
+
+   test -f "$skill_source/SKILL.md" &&
+   test ! -e "$skill_target" &&
+   test ! -L "$skill_target" &&
+   mkdir -p "$(dirname "$skill_target")" &&
+   cp -R "$skill_source" "$skill_target"
+
+The guards refuse an existing destination or dangling symlink. A missing source
+calls for inspecting the installed version/archive; do not create an empty
+placeholder. A reviewed checkout or immutable revision containing the complete
+package is another source choice.
 
 ============  ===================  ======================
 Agent         Project              Global
@@ -43,48 +137,13 @@ Codex         ``.agents/skills/``  ``~/.agents/skills/``
 Claude Code   ``.claude/skills/``  ``~/.claude/skills/``
 ============  ===================  ======================
 
-These are default local CLI discovery paths. Honor configured locations.
-Other hosts and cloud sessions may differ. See the current
-`Codex skills guide <https://learn.chatgpt.com/docs/build-skills>`_ and
-`Claude Code skills guide <https://code.claude.com/docs/en/skills>`_.
-The portable package has no host-specific adapters.
+Honor the host's configured paths and avoid ambiguous duplicates.
+See the `Codex skills guide <https://developers.openai.com/codex/skills/>`_
+and `Claude Code skills guide <https://code.claude.com/docs/en/skills>`_.
+The portable package needs no host adapter.
 
-Guarded copy installation
-------------------------
-
-From the consumer project root, choose one source and destination:
-
-.. code-block:: sh
-
-   skill_source="vendor/fast-forward/config/skills/fast-forward-config"
-   skill_target=".agents/skills/fast-forward-config"
-   # For a reviewed checkout, point skill_source to its skills/fast-forward-config.
-   # Opt-in global Codex destination:
-   # skill_target="$HOME/.agents/skills/fast-forward-config"
-   # Claude Code uses .claude/skills in the corresponding scope.
-
-   test -f "$skill_source/SKILL.md" &&
-   test ! -e "$skill_target" &&
-   test ! -L "$skill_target" &&
-   mkdir -p "$(dirname "$skill_target")" &&
-   cp -R "$skill_source" "$skill_target"
-
-The copy refuses existing destinations, including dangling symlinks. A missing
-source means the installed release predates the skill: select a reviewed
-checkout, rather than creating a placeholder or upgrading production
-dependencies solely for agent instructions.
-
-Inspect the entrypoint/resources, refresh the agent session and confirm
-``fast-forward-config`` appears in its available skills. Explicitly ask the
-agent to use it for a consumer task. Copying or CLI listing does not prove
-activation in a live agent.
-
-Update, removal and rollback
-----------------------------
-
-Review the new source/revision and diff before replacing a copy. Keep the
-previous package **outside every skill discovery directory**. With the same
-``skill_target``:
+For update or removal, archive only the selected current package outside every
+discovery directory. With the same ``skill_target``:
 
 .. code-block:: sh
 
@@ -96,43 +155,44 @@ previous package **outside every skill discovery directory**. With the same
    mkdir -p "$(dirname "$skill_backup")" &&
    mv "$skill_target" "$skill_backup"
 
-Moving it out removes a manual copy from discovery. For updates, repeat the
-guarded copy with the new reviewed source. For rollback, first archive any
-replacement, then move the saved complete package to its original destination.
-Refresh the agent session. Do not keep backups under ``.agents/skills`` or
-``.claude/skills``.
+Moving it out removes a manual copy from discovery. Review the new source and
+repeat the guarded copy for an update. For rollback, first archive any
+replacement, then restore the complete saved package to its original path and
+refresh the session. Never keep backups under ``.agents/skills`` or
+``.claude/skills``. Installer-managed copies can return on the next sync until
+donor/trust configuration changes.
 
-Optional assisted installation
--------------------------------
+Installing the Composer plugin globally does not install skill files globally:
+the tool still operates on a selected project/target. Explicit manual or Skills
+CLI global copies have their own lifecycle.
 
-The `Skills CLI <https://github.com/vercel-labs/skills>`_ is a development tool,
+Optional Skills CLI
+-------------------
+
+The `Skills CLI <https://github.com/vercel-labs/skills>`_ is development tooling,
 not a PHP runtime dependency. These commands pin ``skills@1.7.2`` and require
-Node.js 22.20.0+ and npm; repository sources also require Git. Review a new
-CLI version before changing the pin.
-
-For a skill-bearing installed library or reviewed local source:
+Node.js 22.20.0+ and npm; repository sources also require Git. Review a new CLI
+version before changing the pin.
 
 .. code-block:: sh
 
-   npx --yes skills@1.7.2 add ./vendor/fast-forward/config/skills/fast-forward-config --skill fast-forward-config --agent codex --copy --yes
+   npx --yes skills@1.7.2 add ./vendor/fast-forward/config/resources/skills/fast-forward-config --skill fast-forward-config --agent codex --copy --yes
    npx --yes skills@1.7.2 list --agent codex
 
-Use ``--agent claude-code`` for Claude Code. Add ``--global`` explicitly to
-``add`` and ``list`` for a global installation. ``--copy`` prevents a symlink
-into a vendor directory Composer might replace.
+Choose the actual host, such as ``--agent claude-code``. Add ``--global``
+explicitly to both commands for global installation. ``--copy`` avoids a
+symlink into replaceable Composer vendor content. Commit project copies and
+intended CLI lockfiles.
 
-Before a skill-bearing release, set ``SKILL_REF`` to the **reviewed full commit
-SHA containing this directory**, then run:
+For a repository source, set ``SKILL_REF`` to its reviewed full commit SHA first:
 
 .. code-block:: sh
 
-   npx --yes skills@1.7.2 add "https://github.com/php-fast-forward/config/tree/$SKILL_REF/skills/fast-forward-config" --skill fast-forward-config --agent codex --copy --yes
+   npx --yes skills@1.7.2 add "https://github.com/php-fast-forward/config/tree/$SKILL_REF/resources/skills/fast-forward-config" --skill fast-forward-config --agent codex --copy --yes
 
-Record that revision. For updates, review a new revision and repeat ``add``
-with the new pinned source; update-to-latest is a different operation.
-Commit project copies and any CLI-generated lockfile.
-
-Remove only this skill:
+For updates, review a new immutable revision and repeat with that source;
+update-to-latest is a separate choice. Back up local edits before replacement.
+Remove only the selected scope/name:
 
 .. code-block:: sh
 
@@ -140,33 +200,26 @@ Remove only this skill:
    # Explicit global alternative:
    npx --yes skills@1.7.2 remove fast-forward-config --agent codex --global --yes
 
-Automatic installation decision
--------------------------------
+Verify installation and use
+--------------------------
 
-A dedicated installer or Composer agent-skill plugin could discover packages
-and manage instruction files. That adds execution/trust, destination selection
-and generated-file ownership to Composer's lifecycle. This package needs none
-of that: project-local guarded copies are the default, global copies are
-explicit, and Skills CLI is the assisted alternative.
+Inspect the installed package, refresh the agent session and confirm discovery
+of ``fast-forward-config``. Ask for a small configuration task and check its
+result. A file copy, CLI listing, live host activation and a successful task are
+different observations.
 
-Teams may adopt their own reviewed development installer. This library does
-not register hooks, install into a home directory, run examples or generate
-instructions during Composer installation.
-
-Validation scope
-----------------
-
-Examples are PHP consumer programs, also exercised by integration tests:
+The examples accept the application's Composer autoloader:
 
 .. code-block:: sh
 
-   php skills/fast-forward-config/examples/composition.php ./vendor/autoload.php
+   php vendor/fast-forward/config/resources/skills/fast-forward-config/examples/application.php ./vendor/autoload.php
 
-The others are ``sources.php``, ``caching.php`` and ``containers.php``.
-Optional Container integration reports when its dependency is absent.
-File examples use private temporary fixtures; the educational cache has no TTL.
+The other programs are ``composition.php``, ``sources.php``, ``caching.php``
+and ``containers.php``. They use explicit comparisons and the repository's
+PHPUnit integration coverage. File examples use private temporary fixtures.
+The cache fixture records TTLs without implementing expiration. Optional
+Container integration clearly reports when its dependency is absent.
 
-Installation/update/removal checks use disposable projects and isolated global
-directories. They establish file distribution and CLI listing, not live
-behavior in every agent. Behavioral evaluation is manual, separate from PHP
-execution and official package-format validation.
+First-party references: `llm/skills 1.15.0 <https://github.com/roxblnfk/skills/tree/1.15.0>`_,
+`Composer suggestions <https://getcomposer.org/doc/04-schema.md#suggest>`_ and
+`plugin approval <https://getcomposer.org/doc/06-config.md#allow-plugins>`_.

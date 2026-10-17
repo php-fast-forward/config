@@ -1,6 +1,6 @@
 # PSR-11 and FastForward Container
 
-Load when callers expect PSR-11 or factories consume configuration. Run `examples/containers.php`. The standalone adapter always runs; optional full-container integration requires `fast-forward/container` (checked at 1.9.0).
+Load when callers expect PSR-11 or factories consume configuration. Run `examples/containers.php`. The standalone adapter always runs; optional full-container integration requires `fast-forward/container` with a supported `^1.9` API.
 
 ## Raw paths and exposed identifiers
 
@@ -14,13 +14,18 @@ $container->get('config') === $config;   // true
 $container->get(FastForward\Config\ConfigInterface::class) === $config; // true
 ```
 
-The concrete config class also resolves the wrapped object. The wrapper's own class resolves itself with `get()`, but 1.6.0 `has()` incorrectly reports false (#22). Prefer `ConfigInterface::class` or `config` for the wrapped config.
+The concrete config class resolves the wrapped object. The adapter's own class
+resolves itself, and `has()` reports both internal bindings consistently.
 
-Raw keys do not start with `config.`. Use complete documented nonempty identifiers. The baseline accepts near-prefix matches and leaks an invalid-path exception for `config.` (#22); the prefix is not an authorization boundary. Ordinary missing leaf IDs throw `ContainerNotFoundException`. Baseline multibyte calls require mbstring despite an undeclared requirement (#20).
+Raw keys do not start with `config.`. The prefix must be exact and its suffix
+nonempty: `config.`, `configuration.app.name` and unknown leaf identifiers
+return false from `has()` and raise `ContainerNotFoundException` from `get()`.
+The prefix is a naming convention, not authorization. No mbstring extension
+is needed.
 
 ## Optional full-container composition
 
-Inspect that library's installed version too. In the checked 1.9.0 API, nest initializers under its own interface name:
+Inspect that library's installed version too. In the supported ^1.9 API, nest initializers under its own interface name:
 
 ```php
 use FastForward\Config\ArrayConfig;
@@ -46,4 +51,4 @@ if ($services->get('app.label') !== 'Hello Store') {
 
 Use `FastForward\Container\ContainerInterface::class`, not the PSR interface, for that raw provider-list key. Resolve config in the composition root/factory; application services receive concrete values/collaborators.
 
-Config lets later scalar sources win; FastForward Container 1.9.0 tries earlier sources first. Pass test overrides first, e.g. `container($testOverrides, $config)`, and resolve representative services. Do not assume internal resolution or cached services refresh when source config changes.
+Config lets later scalar sources win; FastForward Container tries earlier sources first. Pass test overrides first, e.g. `container($testOverrides, $config)`, and resolve representative services. Do not assume internal resolution or cached services refresh when source config changes.

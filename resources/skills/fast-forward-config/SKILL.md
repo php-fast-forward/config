@@ -2,10 +2,10 @@
 name: fast-forward-config
 description: Implement or maintain application configuration with fast-forward/config in PHP. Use for composing arrays, files, directories and Laminas-style providers, dot-path lookup and mutation, persistent PHP files, PSR-16 caching, or config.* services exposed through PSR-11 and FastForward Container. Inspect the installed Composer version before selecting APIs.
 license: MIT
-compatibility: PHP 8.3+ and Composer; examples verified against fast-forward/config 1.6.0. Directory examples require PHP 8.4+ and mbstring; ConfigContainer also needs mbstring in that baseline. Optional FastForward Container integration uses 1.9.0. No host-specific tools or setup.
+compatibility: fast-forward/config ^1.7 on PHP 8.3+ and Composer. Optional full-container examples support fast-forward/container ^1.9. No mbstring extension or host-specific setup is required by Config.
 metadata:
   author: php-fast-forward
-  api-baseline: "1.6.0"
+  api-baseline: "1.7.0"
 ---
 
 # Fast Forward Config
@@ -16,8 +16,8 @@ Implement the application's configuration composition and return concrete change
 
 1. Read project instructions, Composer files, bootstrap and the relevant sources. PHP configuration executes code: inspect unfamiliar files/providers before loading them, preserve the application's secret mechanism, and avoid printing full configuration.
 2. Run `composer show fast-forward/config` and `php --version`. If dependencies are absent, inspect `composer.lock` for the intended version; install only within task authority. A global skill copy does not upgrade a project.
-3. The checked baseline is **1.6.0**. Native dot-path storage is released there; Laminas remains a runtime dependency and the deprecated misspelled compatibility class remains present in that release. Its removal in post-release source is not a published version. For other versions inspect installed source/tests and release notes before transferring version-sensitive behavior.
-4. Check relevant current issues and the installed version before asserting a limitation or fix. Load [versions and known limitations](references/versions-and-limitations.md) when using caching, files, directories or PSR-11.
+3. This procedure supports **`fast-forward/config ^1.7`**, with a minimum release of **1.7.0**. Earlier versions are outside this supported contract. Report a mismatch and use compatible guidance; do not change dependencies solely to fit this skill. Load [versions and boundaries](references/versions-and-limitations.md) for migration and failure policies.
+4. Use `LaminasConfigAggregatorConfig` for direct provider construction. The misspelled `LamiasConfigAggregatorConfig` has no compatibility alias in this contract. Laminas ConfigAggregator and Brick VarExporter remain runtime dependencies.
 5. Locate the composition root and preserve source order, lifetime and persistence choices. Decide whether the task needs a fresh snapshot or mutation of an already resolved object.
 
 ## Select the entry point
@@ -37,40 +37,66 @@ Implement the application's configuration composition and return concrete change
 
 ## Ordinary application setup
 
-After the application's Composer dependencies are installed, create `bootstrap/config.php`:
+Use the application's installed Composer autoloader and keep executable PHP
+configuration under application control. Create these files from the project root:
+
+`config/autoload/10-default.php`:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-use function FastForward\Config\config;
+return [
+    'app' => ['env' => 'production', 'debug' => false],
+    'jobs' => ['email', 'metrics'],
+];
+```
+
+`config/autoload/20-local.php`:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+return ['app.debug' => true, 'jobs' => ['email']];
+```
+
+`bootstrap/config.php`:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use function FastForward\Config\configDir;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
-return config(
-    [
-        'app' => ['env' => 'production', 'debug' => false],
-        'jobs' => ['email', 'metrics'],
-    ],
-    [
-        'app.debug' => true,
-        'jobs' => ['email'],
-    ],
-);
+return configDir(dirname(__DIR__) . '/config/autoload');
 ```
 
-Verify from the project root:
+Read values where services are constructed; pass those concrete values to services
+instead of making each service discover configuration. Verify from the project root:
 
 ```sh
-php -r '$c = require "bootstrap/config.php"; if ($c->get("app.debug") !== true || $c->get("jobs") !== ["email", "metrics", "email"]) { throw new RuntimeException("Configuration precedence failed"); }'
+php -r '$c = require "bootstrap/config.php"; if ($c->get("app.debug") !== true || $c->get("app.env") !== "production" || $c->get("jobs") !== ["email", "metrics", "email"]) { throw new RuntimeException("Configuration precedence failed"); }'
 ```
 
-Aggregation recursively merges maps, concatenates sequential lists in source order, retains duplicates and lets later scalar values win. This differs from `set()`, which recursively replaces existing numeric indices: setting `jobs` to `['sms']` leaves `['sms', 'metrics', 'email']`. To replace the entire list deliberately, remove that key before setting the new list.
+The root files load lazily in filename order. Later scalar values win; maps merge
+recursively; sequential lists concatenate in source order and retain duplicates.
+The dotted local key overrides the earlier nested key. Use `config($defaults,
+$application, $testOverrides)` for explicit in-memory composition with the same
+later-source precedence, or `new ArrayConfig($array)` for direct construction.
+
+This differs from `set()`, which recursively replaces existing numeric indices:
+setting `jobs` to `['sms']` leaves `['sms', 'metrics', 'email']`. Remove the key
+before setting the new list when replacement of the whole list is intended.
 
 ## Read and mutate deliberately
 
-- `.` and `/` separate path segments. Leading, trailing and repeated separators preserve empty segments. An entirely empty `get/has/remove` path throws. Avoid empty keys: 1.6.0 `set('')` can store one that those lookup methods cannot read. There is no escaping syntax for literal separators.
+- `.` and `/` separate path segments. Leading, trailing and repeated separators preserve empty segments. An entirely empty `get/has/remove` path throws. Avoid empty keys: `set('')` can store one that those lookup methods cannot read. There is no escaping syntax for literal separators.
 - `has()` distinguishes an existing null from an absent key. `get($key, $default)` returns the default for either null or absence.
 - `get()` wraps an all-string-key map, including an empty array, in a new `ArrayConfig`. Lists, sparse numeric arrays and mixed-key arrays stay arrays. A returned map is a separate value: mutate the owning config with its complete path.
 - `set()`, `remove()` and ArrayAccess update the resolved object. They persist only through an explicitly persistent file/cache wrapper. `isset($config['key'])` follows `has()`, including present nulls. Appending through `$config[]` is unsupported.
@@ -81,7 +107,7 @@ Load [composition and path boundaries](references/composition-and-paths.md) for 
 ## Load only the needed scenario
 
 - For file defaults, trusted PHP paths, directory ordering, lazy providers and generated file caches, load [files and providers](references/files-and-providers.md), then run `examples/sources.php`.
-- For PSR-16 identities, invalidation, lifetime and persistent mutations, load [caching](references/caching.md), then run `examples/caching.php`. On 1.6.0 prefer direct `CachedConfig` with an explicit portable key: the helper has no key argument and its default has known defects.
+- For PSR-16 identities, invalidation, lifetime and persistent mutations, load [caching](references/caching.md), then run `examples/caching.php`. Use an explicit portable key when separate wrappers should share data; defaults isolate each wrapper.
 - For raw keys versus `config.*` identifiers and optional FastForward Container integration, load [container integration](references/containers.md), then run `examples/containers.php`.
 
 Each program accepts the application's Composer autoloader:
@@ -90,7 +116,7 @@ Each program accepts the application's Composer autoloader:
 php /path/to/fast-forward-config/examples/composition.php ./vendor/autoload.php
 ```
 
-Examples use explicit comparisons and exceptions, independent of PHP's `assert()` setting. File examples create private temporary fixtures and clean up their own files; they do not edit application configuration. The cache fixture is educational, with no TTL implementation. Optional Container integration reports when its dependency is absent.
+Examples use explicit comparisons and exceptions, independent of PHP's `assert()` setting. File examples create private temporary fixtures and clean up their own files; they do not edit application configuration. The cache fixture records TTL arguments but does not expire entries. Optional Container integration reports when its dependency is absent.
 
 ## Verify and report
 

@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace FastForward\Config\SkillExamples;
 
+use FastForward\Config\Exception\InvalidArgumentException;
 use Laminas\ConfigAggregator\ConfigAggregator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -37,7 +38,7 @@ if (! mkdir($directory, 0o700)) {
 
 try {
     mkdir($directory . '/config', 0o700);
-    mkdir($directory . '/config/module', 0o700);
+    mkdir($directory . '/config/module/deep/nested', 0o700, true);
     file_put_contents(
         $directory . '/config/10-default.php',
         '<?php return ["app" => ["env" => "production"], "jobs" => ["base"]];'
@@ -48,6 +49,8 @@ try {
     );
     file_put_contents($directory . '/config/module/30-module.php', '<?php return ["module" => true];');
 
+    file_put_contents($directory . '/config/module/deep/nested/40-deep.php', '<?php return ["deep" => true];');
+
     $root = configDir($directory . '/config');
     same('testing', $root->get('app.env'), 'Root PHP files must apply in ordinary sorted filename order.');
     same(['base', 'local'], $root->get('jobs'), 'File aggregation must retain sequential-list order.');
@@ -55,8 +58,9 @@ try {
     same(
         true,
         configDir($directory . '/config', recursive: true)->get('module'),
-        'The baseline supports one nested level.'
+        'Recursive mode must include child directories.'
     );
+    same(true, configDir($directory . '/config', recursive: true)->get('deep'), 'Recursive mode must reach every depth.');
     same(true, config($directory . '/config')->get('module'), 'A directory string must select recursive mode.');
 
     $file = $directory . '/runtime.php';
@@ -73,6 +77,17 @@ try {
     $memory->set('app.env', 'memory-only');
     same('persisted', configFile($file)->get('app.env'), 'Non-persistent mutation must not edit the file.');
 
+    file_put_contents($directory . '/invalid.php', '<?php return "invalid";');
+    foreach (['missing.php', 'invalid.php'] as $invalidFile) {
+        $caught = false;
+        try {
+            configFile($directory . '/' . $invalidFile)->toArray();
+        } catch (InvalidArgumentException) {
+            $caught = true;
+        }
+        same(true, $caught, 'Missing or non-array configuration must use the library exception.');
+    }
+
     $calls = 0;
     $providers = configProvider([
         static function () use (&$calls): array {
@@ -84,14 +99,10 @@ try {
                 ],
             ];
         },
-        static fn(): array => [
-            'app' => [
-                'env' => 'late',
-            ],
-        ],
+        static fn(): array => ['app.env' => 'late'],
     ]);
     same(0, $calls, 'Provider construction must be lazy.');
-    same('late', $providers->get('app.env'), 'Consistent nested providers must use later scalar precedence.');
+    same('late', $providers->get('app.env'), 'Later dotted providers must override earlier nested values.');
     same(1, $calls, 'The provider must be evaluated once by the resolved wrapper.');
     $providers->toArray();
     same(1, $calls, 'Repeated wrapper access must reuse its snapshot.');

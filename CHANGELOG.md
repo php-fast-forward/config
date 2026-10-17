@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a portable `fast-forward-config` agent skill with version-aware consumer guidance, executable examples and project-local or opt-in global installation instructions.
+- Add a portable `fast-forward-config` consumer skill in resources/skills with version-aware guidance, checked application examples, manual project/global installation and optional llm/skills Composer discovery.
 
 ### Changed
 
