@@ -24,7 +24,9 @@ use FastForward\Config\Exception\InvalidArgumentException;
 use FastForward\Config\Helper\ConfigHelper;
 use FastForward\Config\LazyLoadConfigTrait;
 use FastForward\Config\PhpFileConfig;
+use FilesystemIterator;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\Attributes\UsesTrait;
@@ -42,6 +44,93 @@ use PHPUnit\Framework\TestCase;
 final class PhpFileConfigTest extends TestCase
 {
     use PhpFileConfigFixture;
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function emptyLocatorDefaults(): iterable
+    {
+        yield 'array defaults' => ['array'];
+        yield 'configuration defaults' => ['configuration'];
+        yield 'without defaults' => ['none'];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('emptyLocatorDefaults')]
+    public function testEmptyLocatorRetainsMissingReadBehavior(string $defaultType): void
+    {
+        mkdir($this->tempDirectory);
+        $workingDirectory = getcwd();
+        $data = [
+            'initial' => true,
+        ];
+        $defaults = match ($defaultType) {
+            'array' => $data,
+            'configuration' => new ArrayConfig($data),
+            default => null,
+        };
+
+        try {
+            chdir($this->tempDirectory);
+            $config = new PhpFileConfig('', defaultConfig: $defaults);
+            if (null === $defaults) {
+                $this->expectException(InvalidArgumentException::class);
+                $config->toArray();
+            } else {
+                self::assertSame($data, $config->toArray());
+            }
+        } finally {
+            chdir($workingDirectory);
+            self::assertSame([], iterator_to_array(new FilesystemIterator($this->tempDirectory)));
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function emptyLocatorLocalMutations(): iterable
+    {
+        foreach (['array', 'configuration'] as $defaultType) {
+            foreach (['set', 'remove'] as $operation) {
+                yield $defaultType . ' defaults during ' . $operation => [$defaultType, $operation];
+            }
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('emptyLocatorLocalMutations')]
+    public function testEmptyLocatorNonPersistentChangesRemainLocal(string $defaultType, string $operation): void
+    {
+        mkdir($this->tempDirectory);
+        $workingDirectory = getcwd();
+        $data = [
+            'initial' => true,
+        ];
+        $defaults = 'configuration' === $defaultType ? new ArrayConfig($data) : $data;
+
+        try {
+            chdir($this->tempDirectory);
+            $config = new PhpFileConfig('', persistent: false, defaultConfig: $defaults);
+            if ('set' === $operation) {
+                $config->set('saved', true);
+                $data['saved'] = true;
+            } else {
+                $config->remove('initial');
+                $data = [];
+            }
+
+            self::assertSame($data, $config->toArray());
+            self::assertSame([], iterator_to_array(new FilesystemIterator($this->tempDirectory)));
+        } finally {
+            chdir($workingDirectory);
+        }
+    }
 
     /**
      * @return void

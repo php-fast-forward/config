@@ -45,6 +45,69 @@ final class PhpFileConfigPersistenceTest extends TestCase
     use PhpFileConfigFixture;
 
     /**
+     * @return iterable<string, array{string, bool, string}>
+     */
+    public static function publicationFunctionCases(): iterable
+    {
+        foreach (['chmod', 'umask'] as $function) {
+            foreach ([false, true] as $existing) {
+                foreach (['set', 'remove'] as $operation) {
+                    yield $function . ' disabled for ' . ($existing ? 'existing' : 'new') . ' file during ' . $operation => [
+                        $function,
+                        $existing,
+                        $operation,
+                    ];
+                }
+            }
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('publicationFunctionCases')]
+    public function testPersistentChangesHandleUnavailablePublicationFunctions(
+        string $function,
+        bool $existing,
+        string $operation
+    ): void {
+        if (! \function_exists('proc_open')) {
+            self::markTestSkipped('Subprocess support is required to disable individual PHP functions.');
+        }
+
+        mkdir($this->tempDirectory);
+        $file = $this->tempDirectory . '/settings.php';
+        $content = '<?php return ["initial" => true];';
+        if ($existing) {
+            file_put_contents($file, $content);
+        }
+
+        $result = $this->runWithDisabledMetadataFunctions($file, $operation, $function);
+        self::assertFalse($result['function_available']);
+        if ('chmod' === $function || ! $existing) {
+            self::assertSame(
+                InvalidArgumentException::class,
+                $result['exception'],
+                $result['message'] ?? 'No exception was thrown.'
+            );
+            if ($existing) {
+                self::assertSame($content, file_get_contents($file));
+            } else {
+                self::assertFileDoesNotExist($file);
+            }
+        } else {
+            self::assertNull($result['exception'], $result['message'] ?? '');
+            self::assertSame('set' === $operation ? [
+                'initial' => true,
+                'saved' => true,
+            ] : [], require $file);
+        }
+
+        self::assertSame([], glob($this->tempDirectory . '/cfg_*'));
+    }
+
+    /**
      * @return void
      */
     #[Test]

@@ -48,6 +48,53 @@ final class PhpFileConfigPathTest extends TestCase
     use PhpFileConfigFixture;
 
     /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function emptyLocatorPersistentMutations(): iterable
+    {
+        foreach (['array', 'configuration', 'none'] as $defaultType) {
+            foreach (['set', 'remove'] as $operation) {
+                yield $defaultType . ' defaults during ' . $operation => [$defaultType, $operation];
+            }
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('emptyLocatorPersistentMutations')]
+    public function testEmptyLocatorPersistentChangesFailBeforeCreatingEntries(
+        string $defaultType,
+        string $operation
+    ): void {
+        mkdir($this->tempDirectory);
+        $workingDirectory = getcwd();
+        $data = [
+            'initial' => true,
+        ];
+        $defaults = match ($defaultType) {
+            'array' => $data,
+            'configuration' => new ArrayConfig($data),
+            default => null,
+        };
+
+        try {
+            chdir($this->tempDirectory);
+            $config = new PhpFileConfig('', persistent: true, defaultConfig: $defaults);
+            $this->expectException(InvalidArgumentException::class);
+            if ('set' === $operation) {
+                $config->set('saved', true);
+            } else {
+                $config->remove('initial');
+            }
+        } finally {
+            chdir($workingDirectory);
+            self::assertSame([], iterator_to_array(new FilesystemIterator($this->tempDirectory)));
+        }
+    }
+
+    /**
      * @return iterable<string, array{string, bool}>
      */
     public static function relativeFileCases(): iterable

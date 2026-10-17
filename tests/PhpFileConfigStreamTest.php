@@ -46,6 +46,54 @@ final class PhpFileConfigStreamTest extends TestCase
     use PhpFileConfigFixture;
 
     /**
+     * @return iterable<string, array{string, string|null, bool}>
+     */
+    public static function streamsWithoutCaseFolding(): iterable
+    {
+        yield 'mixed-case built-in protocol needs folding' => ['FiLe', null, true];
+        yield 'exact built-in protocol avoids folding' => ['file', null, false];
+        yield 'exact uppercase registration avoids folding' => ['FFCONFIGCASE', 'FFCONFIGCASE', false];
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('streamsWithoutCaseFolding')]
+    public function testStreamLookupHandlesUnavailableCaseFolding(
+        string $scheme,
+        ?string $registered,
+        bool $requiresFolding
+    ): void {
+        if (! \function_exists('proc_open')) {
+            self::markTestSkipped('Subprocess support is required to disable individual PHP functions.');
+        }
+
+        $content = '<?php return ["initial" => true];';
+        file_put_contents($this->tempFile, $content);
+        $path = str_replace('\\', '/', $this->tempFile);
+        $input = null === $registered
+            ? $scheme . '://' . (str_starts_with($path, '/') ? '' : '/') . $path
+            : $scheme . '://' . $this->tempFile;
+        $result = $this->runWithDisabledMetadataFunctions($input, 'get', 'strtolower', $registered);
+
+        self::assertFalse($result['function_available']);
+        if ($requiresFolding) {
+            self::assertSame(
+                InvalidArgumentException::class,
+                $result['exception'],
+                $result['message'] ?? 'No exception was thrown.'
+            );
+        } else {
+            self::assertNull($result['exception'], $result['message'] ?? '');
+            self::assertTrue($result['value']);
+        }
+
+        self::assertSame($content, file_get_contents($this->tempFile));
+        self::assertFileDoesNotExist(\dirname($this->tempFile) . '/.' . basename($this->tempFile) . '.lock');
+    }
+
+    /**
      * @return iterable<string, array{string, string|null}>
      */
     public static function relativePathsContainingUriSyntax(): iterable

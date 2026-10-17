@@ -162,7 +162,7 @@ final class PhpFileConfig implements ConfigInterface
     private function mutate(callable $operation): void
     {
         $targetFile = $this->resolveTargetFile();
-        if (str_contains($targetFile, "\0") || str_ends_with($targetFile, '/')
+        if ('' === $targetFile || str_contains($targetFile, "\0") || str_ends_with($targetFile, '/')
             || ('\\' === \DIRECTORY_SEPARATOR && str_ends_with($targetFile, '\\'))) {
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
@@ -321,6 +321,10 @@ final class PhpFileConfig implements ConfigInterface
             }
         }
 
+        if (! \function_exists('chmod') || (null === $existingMetadata && ! \function_exists('umask'))) {
+            throw InvalidArgumentException::forUnwritableFile($this->file);
+        }
+
         $mode = null !== $existingMetadata ? ($existingMetadata['mode'] & 0o777) : (0o666 & ~umask());
         if (! @chmod($tmpFile, $mode)) {
             throw InvalidArgumentException::forUnwritableFile($this->file);
@@ -334,7 +338,7 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function resolveTargetFile(): string
     {
-        if (str_contains($this->file, "\0")) {
+        if ('' === $this->file || str_contains($this->file, "\0")) {
             return $this->file;
         }
 
@@ -464,7 +468,15 @@ final class PhpFileConfig implements ConfigInterface
 
         $wrappers = stream_get_wrappers();
 
-        return \in_array($matches[1], $wrappers, true) || \in_array(strtolower($matches[1]), $wrappers, true);
+        if (\in_array($matches[1], $wrappers, true)) {
+            return true;
+        }
+
+        if (! \function_exists('strtolower')) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
+        }
+
+        return \in_array(strtolower($matches[1]), $wrappers, true);
     }
 
     /**

@@ -76,13 +76,18 @@ trait PhpFileConfigFixture
      * @param string $file
      * @param string $operation
      * @param string $functions
+     * @param string|null $registeredStream
      *
-     * @return array{exception: string|null, function_available: bool, message?: string}
+     * @return array{exception: string|null, function_available: bool, message?: string, value?: mixed}
      */
-    private function runWithDisabledMetadataFunctions(string $file, string $operation, string $functions): array
-    {
+    private function runWithDisabledMetadataFunctions(
+        string $file,
+        string $operation,
+        string $functions,
+        ?string $registeredStream = null
+    ): array {
         $autoload = \dirname((new ReflectionClass(ClassLoader::class))->getFileName(), 2) . '/autoload.php';
-        $output = $this->runPhpSubprocess([
+        $arguments = [
             '-d',
             'disable_functions=' . $functions,
             __DIR__ . '/Stub/disabled-metadata-functions.php',
@@ -90,7 +95,12 @@ trait PhpFileConfigFixture
             $file,
             $operation,
             explode(',', $functions)[0],
-        ]);
+        ];
+        if (null !== $registeredStream) {
+            $arguments[] = $registeredStream;
+        }
+
+        $output = $this->runPhpSubprocess($arguments);
 
         return json_decode((string) $output, true, 512, \JSON_THROW_ON_ERROR);
     }
