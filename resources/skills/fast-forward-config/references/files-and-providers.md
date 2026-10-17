@@ -17,7 +17,7 @@ $config = configFile(
 $config->set('app.env', 'staging');
 ```
 
-Construction is lazy. A missing file without defaults fails on resolution. Defaults apply only when the file is absent, not when existing PHP returns the wrong type. Reading defaults does not create a file, even with persistence enabled. The first persistent mutation creates the file and missing parent directories. Without `persistent: true` mutations affect only the in-memory instance.
+Construction is lazy. A missing file without defaults fails on resolution. Defaults apply only when the file is absent, not when existing PHP returns the wrong type. Reading defaults does not create a file, even with persistence enabled. With a non-null `defaultConfig`, the first persistent mutation creates the file and missing parent directories. Without defaults, mutation of a missing file also throws. Without `persistent: true` mutations affect only the in-memory instance.
 
 Persistent mutation reloads the source under a sidecar lock and atomically replaces its target. The caller needs writable file/parent permissions. Generated files are executable PHP and must remain application-controlled. Supported values are exported through Brick VarExporter; do not claim arbitrary objects, closures or resources are universally persistable. Reload the actual value types you intend to store.
 

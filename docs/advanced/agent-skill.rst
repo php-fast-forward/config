@@ -76,10 +76,13 @@ the plugin, then inspect and apply:
    composer skills:update fast-forward/config
 
 Naming a donor selects/trusts it for that run; it does not test the automatic
-allowlist policy. With Composer 2.10.3 and llm/skills 1.15.0, ``--no-scripts``
-alone still allowed automatic synchronization. ``auto-sync: false`` suppresses
-the automatic copy; ``--no-plugins`` prevents plugin loading. Recheck behavior
-when changing tool versions and inspect copied bytes as well as exit status.
+allowlist policy. For one install/update invocation, use ``--no-plugins`` to
+disable plugin-driven synchronization. ``--no-scripts`` skips scripts defined
+in composer.json; it does not disable plugins. Keep ``auto-sync: false`` for
+an explicit-sync policy with plugin commands available. See
+`Composer's global options <https://getcomposer.org/doc/03-cli.md#global-options>`_.
+Recheck behavior when changing tool versions and inspect copied bytes as well
+as exit status.
 
 Synchronization ownership and removal
 -------------------------------------
