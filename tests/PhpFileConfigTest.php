@@ -24,7 +24,9 @@ use FastForward\Config\Exception\InvalidArgumentException;
 use FastForward\Config\Helper\ConfigHelper;
 use FastForward\Config\LazyLoadConfigTrait;
 use FastForward\Config\PhpFileConfig;
+use FilesystemIterator;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\Attributes\UsesTrait;
@@ -41,28 +43,92 @@ use PHPUnit\Framework\TestCase;
 #[UsesTrait(ArrayAccessConfigTrait::class)]
 final class PhpFileConfigTest extends TestCase
 {
-    private string $tempFile;
+    use PhpFileConfigFixture;
 
     /**
-     * @return void
+     * @return iterable<string, array{string}>
      */
-    protected function setUp(): void
+    public static function emptyLocatorDefaults(): iterable
     {
-        $this->tempFile = sys_get_temp_dir() . \DIRECTORY_SEPARATOR . uniqid('config_', true) . '.php';
+        yield 'array defaults' => ['array'];
+        yield 'configuration defaults' => ['configuration'];
+        yield 'without defaults' => ['none'];
     }
 
     /**
      * @return void
      */
-    protected function tearDown(): void
+    #[Test]
+    #[DataProvider('emptyLocatorDefaults')]
+    public function testEmptyLocatorRetainsMissingReadBehavior(string $defaultType): void
     {
-        if (file_exists($this->tempFile)) {
-            unlink($this->tempFile);
-        }
+        mkdir($this->tempDirectory);
+        $workingDirectory = getcwd();
+        $data = [
+            'initial' => true,
+        ];
+        $defaults = match ($defaultType) {
+            'array' => $data,
+            'configuration' => new ArrayConfig($data),
+            default => null,
+        };
 
-        $lockFile = \dirname($this->tempFile) . '/.' . \basename($this->tempFile) . '.lock';
-        if (file_exists($lockFile)) {
-            @unlink($lockFile);
+        try {
+            chdir($this->tempDirectory);
+            $config = new PhpFileConfig('', defaultConfig: $defaults);
+            if (null === $defaults) {
+                $this->expectException(InvalidArgumentException::class);
+                $config->toArray();
+            } else {
+                self::assertSame($data, $config->toArray());
+            }
+        } finally {
+            chdir($workingDirectory);
+            self::assertSame([], iterator_to_array(new FilesystemIterator($this->tempDirectory)));
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function emptyLocatorLocalMutations(): iterable
+    {
+        foreach (['array', 'configuration'] as $defaultType) {
+            foreach (['set', 'remove'] as $operation) {
+                yield $defaultType . ' defaults during ' . $operation => [$defaultType, $operation];
+            }
+        }
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    #[DataProvider('emptyLocatorLocalMutations')]
+    public function testEmptyLocatorNonPersistentChangesRemainLocal(string $defaultType, string $operation): void
+    {
+        mkdir($this->tempDirectory);
+        $workingDirectory = getcwd();
+        $data = [
+            'initial' => true,
+        ];
+        $defaults = 'configuration' === $defaultType ? new ArrayConfig($data) : $data;
+
+        try {
+            chdir($this->tempDirectory);
+            $config = new PhpFileConfig('', persistent: false, defaultConfig: $defaults);
+            if ('set' === $operation) {
+                $config->set('saved', true);
+                $data['saved'] = true;
+            } else {
+                $config->remove('initial');
+                $data = [];
+            }
+
+            self::assertSame($data, $config->toArray());
+            self::assertSame([], iterator_to_array(new FilesystemIterator($this->tempDirectory)));
+        } finally {
+            chdir($workingDirectory);
         }
     }
 
@@ -137,11 +203,7 @@ final class PhpFileConfigTest extends TestCase
             ],
         ];
 
-        $config = new PhpFileConfig(
-            file: $this->tempFile,
-            persistent: true,
-            defaultConfig: $defaultData,
-        );
+        $config = new PhpFileConfig(file: $this->tempFile, persistent: true, defaultConfig: $defaultData);
 
         self::assertSame($defaultData, $config->toArray());
         self::assertFileDoesNotExist($this->tempFile);
@@ -159,11 +221,7 @@ final class PhpFileConfigTest extends TestCase
             ],
         ];
 
-        $config = new PhpFileConfig(
-            file: $this->tempFile,
-            persistent: true,
-            defaultConfig: $defaultData,
-        );
+        $config = new PhpFileConfig(file: $this->tempFile, persistent: true, defaultConfig: $defaultData);
 
         $config->set('app.env', 'testing');
 
@@ -192,7 +250,9 @@ final class PhpFileConfigTest extends TestCase
             $config = new PhpFileConfig(
                 file: $filePath,
                 persistent: true,
-                defaultConfig: ['initial' => true],
+                defaultConfig: [
+                    'initial' => true,
+                ],
             );
 
             self::assertDirectoryDoesNotExist($subDir);
@@ -212,9 +272,11 @@ final class PhpFileConfigTest extends TestCase
             if (file_exists($lockFile)) {
                 @unlink($lockFile);
             }
+
             if (file_exists($filePath)) {
                 unlink($filePath);
             }
+
             if (is_dir($subDir)) {
                 rmdir($subDir);
                 rmdir($baseDir . '/nested/sub');
@@ -375,7 +437,9 @@ final class PhpFileConfigTest extends TestCase
         $config = new PhpFileConfig($this->tempFile);
         $iterated = iterator_to_array($config);
 
-        self::assertSame(['db.host' => '127.0.0.1'], $iterated);
+        self::assertSame([
+            'db.host' => '127.0.0.1',
+        ], $iterated);
     }
 
     /**
@@ -396,191 +460,4 @@ final class PhpFileConfigTest extends TestCase
             rmdir($dir);
         }
     }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testDumpWillThrowExceptionWhenDirectoryIsNotWritable(): void
-    {
-        $unwritableDir = '/proc/nonexistent_' . uniqid() . '/file.php';
-        $config = new PhpFileConfig($unwritableDir, persistent: true, defaultConfig: ['foo' => 'bar']);
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage(\sprintf('The file "%s" is not writable.', $unwritableDir));
-
-        $config->set('foo', 'baz');
-    }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testDumpWillThrowExceptionWhenFileIsNotWritable(): void
-    {
-        file_put_contents($this->tempFile, '<?php return ["foo" => "bar"];');
-        chmod($this->tempFile, 0444);
-
-        if (is_writable($this->tempFile)) {
-            self::markTestSkipped('Current environment (e.g. running as root) bypasses read-only file permissions.');
-        }
-
-        try {
-            $config = new PhpFileConfig($this->tempFile, persistent: true);
-            $this->expectException(InvalidArgumentException::class);
-            $this->expectExceptionMessage(\sprintf('The file "%s" is not writable.', $this->tempFile));
-
-            $config->set('foo', 'baz');
-        } finally {
-            chmod($this->tempFile, 0644);
-        }
-    }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testDumpWillThrowExceptionWhenValueCannotBeExported(): void
-    {
-        $config = new PhpFileConfig($this->tempFile, persistent: true, defaultConfig: []);
-
-        $resource = fopen('php://memory', 'r');
-        $this->expectException(InvalidArgumentException::class);
-
-        try {
-            $config->set('resource', $resource);
-        } finally {
-            if (\is_resource($resource)) {
-                fclose($resource);
-            }
-        }
-    }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testPersistentMutationsAcrossMultipleInstancesDoNotOverwriteEachOther(): void
-    {
-        $instanceA = new PhpFileConfig(
-            file: $this->tempFile,
-            persistent: true,
-            defaultConfig: ['initial' => 'value'],
-        );
-
-        $instanceB = new PhpFileConfig(
-            file: $this->tempFile,
-            persistent: true,
-            defaultConfig: ['initial' => 'value'],
-        );
-
-        // Instance A sets key 'foo'
-        $instanceA->set('foo', 'from_a');
-
-        // Instance B sets key 'bar'
-        $instanceB->set('bar', 'from_b');
-
-        // The persisted file should contain both 'foo' and 'bar'
-        $reloaded = new PhpFileConfig($this->tempFile);
-        self::assertSame([
-            'initial' => 'value',
-            'foo'     => 'from_a',
-            'bar'     => 'from_b',
-        ], $reloaded->toArray());
-    }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testPersistentRemoveAcrossMultipleInstancesDoNotOverwriteEachOther(): void
-    {
-        $instanceA = new PhpFileConfig(
-            file: $this->tempFile,
-            persistent: true,
-            defaultConfig: [
-                'initial' => 'value',
-                'keep'    => 'remains',
-            ],
-        );
-
-        $instanceB = new PhpFileConfig(
-            file: $this->tempFile,
-            persistent: true,
-            defaultConfig: [
-                'initial' => 'value',
-                'keep'    => 'remains',
-            ],
-        );
-
-        // Instance A removes 'initial'
-        $instanceA->remove('initial');
-
-        // Instance B sets key 'extra'
-        $instanceB->set('extra', 'added');
-
-        // The persisted file should have 'keep' and 'extra', but not 'initial'
-        $reloaded = new PhpFileConfig($this->tempFile);
-        self::assertSame([
-            'keep'  => 'remains',
-            'extra' => 'added',
-        ], $reloaded->toArray());
-    }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testPersistentMutationPreservesRestrictiveFilePermissions(): void
-    {
-        file_put_contents($this->tempFile, '<?php return ["secret" => "initial"];');
-        chmod($this->tempFile, 0600);
-
-        $initialPerms = fileperms($this->tempFile) & 0777;
-
-        $config = new PhpFileConfig($this->tempFile, persistent: true);
-        $config->set('secret', 'updated');
-
-        $updatedPerms = fileperms($this->tempFile) & 0777;
-        self::assertSame($initialPerms, $updatedPerms);
-        self::assertSame(0600, $updatedPerms);
-    }
-
-    /**
-     * @return void
-     */
-    #[Test]
-    public function testPersistentMutationPreservesSymlinkTarget(): void
-    {
-        $realFile    = sys_get_temp_dir() . \DIRECTORY_SEPARATOR . uniqid('real_cfg_', true) . '.php';
-        $symlinkFile = sys_get_temp_dir() . \DIRECTORY_SEPARATOR . uniqid('symlink_cfg_', true) . '.php';
-
-        file_put_contents($realFile, '<?php return ["env" => "prod"];');
-
-        if (! @symlink($realFile, $symlinkFile)) {
-            unlink($realFile);
-            self::markTestSkipped('Symlinks cannot be created in this environment.');
-        }
-
-        try {
-            $config = new PhpFileConfig($symlinkFile, persistent: true);
-            $config->set('env', 'staging');
-
-            self::assertTrue(is_link($symlinkFile));
-            $reloadedReal = new PhpFileConfig($realFile);
-            self::assertSame(['env' => 'staging'], $reloadedReal->toArray());
-        } finally {
-            if (is_link($symlinkFile) || file_exists($symlinkFile)) {
-                unlink($symlinkFile);
-            }
-            if (file_exists($realFile)) {
-                unlink($realFile);
-            }
-            $realLock = \dirname($realFile) . '/.' . \basename($realFile) . '.lock';
-            if (file_exists($realLock)) {
-                @unlink($realLock);
-            }
-        }
-    }
 }
-
