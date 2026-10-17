@@ -15,8 +15,14 @@ spl_autoload_register(static function (string $class) use ($classMap): void {
 $result = [
     'function_available' => function_exists($argv[4]),
     'getcwd_available' => function_exists('getcwd'),
-    'native_target' => realpath($argv[2]),
+    'native_target_before_chdir' => realpath($argv[2]),
 ];
+
+if (! chdir($argv[6])) {
+    throw new RuntimeException('The native helper case directory could not be selected.');
+}
+
+$result['native_target'] = realpath($argv[2]);
 
 try {
     $config = new PhpFileConfig($argv[2], persistent: true, defaultConfig: [

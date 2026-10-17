@@ -104,6 +104,7 @@ foreach ($cases as $index => $case) {
     $command = [
         \PHP_BINARY, '-n', '-d', 'display_errors=stderr', '-d', 'disable_functions=' . $case['disabled'],
         __DIR__ . '/resolver-function-child.php', $mapFile, $input, $case['operation'], $case['function'], $case['kind'],
+        $caseDirectory,
     ];
     $process = proc_open($command, [
         0 => ['pipe', 'r'],
@@ -159,6 +160,7 @@ foreach ($cases as $index => $case) {
         'function_available' => $result['function_available'],
         'getcwd_available' => $result['getcwd_available'],
         'exception' => $result['exception'],
+        'native_target_before_chdir' => $result['native_target_before_chdir'],
         'native_target' => $result['native_target'],
     ];
 }
