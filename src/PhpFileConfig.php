@@ -162,7 +162,8 @@ final class PhpFileConfig implements ConfigInterface
     private function mutate(callable $operation): void
     {
         $targetFile = $this->resolveTargetFile();
-        if ('' === $targetFile || str_contains($targetFile, "\0") || str_ends_with($targetFile, '/')
+        if ('' === $targetFile || str_contains($targetFile, "\0") || ! \function_exists('str_ends_with')
+            || str_ends_with($targetFile, '/')
             || ('\\' === \DIRECTORY_SEPARATOR && str_ends_with($targetFile, '\\'))) {
             throw InvalidArgumentException::forUnwritableFile($this->file);
         }
@@ -338,7 +339,15 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function resolveTargetFile(): string
     {
-        if ('' === $this->file || str_contains($this->file, "\0")) {
+        if ('' === $this->file) {
+            return $this->file;
+        }
+
+        if (! \function_exists('str_contains')) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
+        }
+
+        if (str_contains($this->file, "\0")) {
             return $this->file;
         }
 
@@ -366,6 +375,10 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function followSymlinks(string $file): string
     {
+        if (! \function_exists('str_ends_with')) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
+        }
+
         $visited = [];
 
         for ($depth = 0; $depth < 64; ++$depth) {
@@ -462,7 +475,7 @@ final class PhpFileConfig implements ConfigInterface
             return false;
         }
 
-        if (! \function_exists('stream_get_wrappers')) {
+        if (! \function_exists('stream_get_wrappers') || ! \function_exists('in_array')) {
             throw InvalidArgumentException::forUnreadableFile($this->file);
         }
 
@@ -489,8 +502,18 @@ final class PhpFileConfig implements ConfigInterface
      */
     private function absolutePath(string $path, ?string $directory = null): string
     {
-        if ('\\' === \DIRECTORY_SEPARATOR && 1 === strspn($path, '\\/')) {
-            return $this->anchorWindowsRootedPath($path, $directory);
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            if (! \function_exists('strspn')) {
+                throw InvalidArgumentException::forUnreadableFile($this->file);
+            }
+
+            if (1 === strspn($path, '\\/')) {
+                return $this->anchorWindowsRootedPath($path, $directory);
+            }
+        }
+
+        if (! \function_exists('str_starts_with')) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
         }
 
         if (str_starts_with($path, '/') || (null === $directory && $this->isStreamPath($path))
@@ -551,13 +574,21 @@ final class PhpFileConfig implements ConfigInterface
             throw InvalidArgumentException::forUnreadableFile($this->file);
         }
 
+        if (! \function_exists('substr')) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
+        }
+
         $drive = substr($path, 0, 2);
         $directory = \function_exists('getcwd') ? getcwd() : false;
+        if (false !== $directory && ! \function_exists('strncasecmp')) {
+            throw InvalidArgumentException::forUnreadableFile($this->file);
+        }
+
         if (false === $directory || 0 !== strncasecmp($drive, $directory, 2)) {
             $directory = realpath($drive . '.');
         }
 
-        if (false === $directory) {
+        if (false === $directory || ! \function_exists('rtrim')) {
             throw InvalidArgumentException::forUnreadableFile($this->file);
         }
 

@@ -110,6 +110,25 @@ try {
                 check($result['passed'], 'A resolver input case failed: ' . $case);
             }
         }
+
+        $process = proc_open([\PHP_BINARY, '-n', __DIR__ . '/resolver-functions.php'], [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ], $pipes, $root);
+        check(is_resource($process), 'The disabled-helper matrix could not start.');
+        fclose($pipes[0]);
+        $output = stream_get_contents($pipes[1]);
+        $errors = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        check(0 === proc_close($process), $errors);
+        $helpers = json_decode($output, true, 512, \JSON_THROW_ON_ERROR);
+        echo 'native resolver helpers: ' . $output . \PHP_EOL;
+        check(65 === count($helpers['checks']), 'The disabled-helper matrix did not execute every case.');
+        foreach ($helpers['checks'] as $case => $result) {
+            check($result['passed'], 'A disabled resolver helper case failed: ' . $case);
+        }
     }
 
     $qualified = $roots[0] . '/qualified.php';
