@@ -29,6 +29,7 @@ foreach ($roots as $prefix => $root) {
 
 $mapFile = $directory . '/resolver-helper-map.json';
 file_put_contents($mapFile, json_encode($classMap, \JSON_THROW_ON_ERROR));
+$driveRelativePrefix = substr($directory, 0, 2) . '..\\' . basename($directory) . '\\';
 $cases = [];
 $append = static function (
     string $function,
@@ -93,24 +94,25 @@ foreach ($cases as $index => $case) {
     $file = $caseDirectory . '/settings.php';
     $content = '<?php return ["initial" => true];';
     file_put_contents($file, $content);
+    $workingDirectory = 'drive' === $case['kind'] ? $directory : $caseDirectory;
     $input = match ($case['kind']) {
         'stream' => 'file:///' . str_replace('\\', '/', $file),
         'relative' => 'settings.php',
         'root' => substr($caseDirectory, 2) . '/settings.php',
-        'drive' => substr($caseDirectory, 0, 2) . '..\\' . basename($caseDirectory) . '\\settings.php',
+        'drive' => $driveRelativePrefix . basename($caseDirectory) . '\\settings.php',
         'empty' => '',
         default => $file,
     };
     $command = [
         \PHP_BINARY, '-n', '-d', 'display_errors=stderr', '-d', 'disable_functions=' . $case['disabled'],
         __DIR__ . '/resolver-function-child.php', $mapFile, $input, $case['operation'], $case['function'], $case['kind'],
-        $caseDirectory,
+        $workingDirectory,
     ];
     $process = proc_open($command, [
         0 => ['pipe', 'r'],
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
-    ], $pipes, $caseDirectory);
+    ], $pipes, $workingDirectory);
     if (! is_resource($process)) {
         throw new RuntimeException('A disabled-helper subprocess could not start.');
     }
@@ -160,6 +162,8 @@ foreach ($cases as $index => $case) {
         'function_available' => $result['function_available'],
         'getcwd_available' => $result['getcwd_available'],
         'exception' => $result['exception'],
+        'input' => $input,
+        'working_directory' => $workingDirectory,
         'native_target_before_chdir' => $result['native_target_before_chdir'],
         'native_target' => $result['native_target'],
     ];
