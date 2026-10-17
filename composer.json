@@ -67,14 +67,14 @@
         "sort-packages": true
     },
     "extra": {
-        "skills": {
-            "source": "resources/skills"
-        },
         "branch-alias": {
             "dev-main": "1.x-dev"
         },
         "grumphp": {
             "config-default-path": "vendor/fast-forward/dev-tools/grumphp.yml"
+        },
+        "skills": {
+            "source": "resources/skills"
         }
     },
     "scripts": {
