@@ -1,0 +1,39 @@
+name: Changelog
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, closed]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  changelog:
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
+      statuses: write
+    # Published 0.x channel, selected by the maintainer; reviewed at v0.2.0.
+    uses: php-fast-forward/changelog/.github/workflows/changelog.yml@v0
+    with:
+      base-branch: main
+      runs-on: '["ubuntu-latest"]'
+      fragment-directory: .changelog
+      changelog-file: CHANGELOG.md
+      locale: en
+      tag-prefix: v
+      source: tags
+      resolve-pull-requests: true
+      managed-branch: changelog/version
+      version-pr-title: 'chore(release): prepare v{next_version}'
+      automation-actor: 'github-actions[bot]'
+      comment-mode: always
+      prepare-release: true
+      publish: false
