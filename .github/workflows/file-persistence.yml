@@ -2,6 +2,12 @@ name: File Persistence Runtime
 
 on:
   push:
+    paths:
+      - 'src/**'
+      - composer.json
+      - composer.lock
+      - '.github/fixtures/file-persistence-consumer/**'
+      - '.github/workflows/file-persistence.yml'
   workflow_dispatch:
 
 permissions:

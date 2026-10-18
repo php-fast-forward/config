@@ -2,6 +2,19 @@ name: "Fast Forward Test Suite"
 
 on:
   push:
+    paths:
+      - '**/*.php'
+      - 'src/**'
+      - 'tests/**'
+      - '**/composer.json'
+      - '**/composer.lock'
+      - '**/phpunit*.xml*'
+      - '.php-version'
+      - '.tool-versions'
+      - '.github/fixtures/**'
+      - '.github/actions/**'
+      - '.github/workflows/tests.yml'
+      - '.github/workflows/test-statuses.yml'
   workflow_dispatch:
 
 permissions:

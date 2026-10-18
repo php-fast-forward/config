@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - composer.json
+      - composer.lock
       - src/**
       - .github/fixtures/directory-consumer/**
       - .github/workflows/directory-discovery.yml
