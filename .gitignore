@@ -5,4 +5,7 @@ tmp/
 vendor/
 composer.lock
 *.cache
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/fast-forward-changelog/
