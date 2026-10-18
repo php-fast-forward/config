@@ -36,4 +36,4 @@ jobs:
       automation-actor: 'github-actions[bot]'
       comment-mode: always
       prepare-release: true
-      publish: false
+      publish: true
