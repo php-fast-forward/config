@@ -3,4 +3,4 @@ category: changed
 type: patch
 ---
 
-Run PHP tests, runtime checks, Reports and Wiki generation only for relevant source, dependency, fixture or workflow changes, while keeping manual runs and required test statuses available for other contributions.
+Limit automatic PHP tests to code and test inputs, and regenerate Reports and Wiki only when their source or documentation inputs change, while preserving manual workflow execution.

@@ -2,6 +2,19 @@ name: "Fast Forward Test Suite"
 
 on:
   push:
+    paths:
+      - '**/*.php'
+      - 'src/**'
+      - 'tests/**'
+      - '**/composer.json'
+      - '**/composer.lock'
+      - '**/phpunit*.xml*'
+      - '.php-version'
+      - '.tool-versions'
+      - '.github/fixtures/**'
+      - '.github/actions/**'
+      - '.github/workflows/tests.yml'
+      - '.github/workflows/test-statuses.yml'
   workflow_dispatch:
 
 permissions:
@@ -12,55 +25,13 @@ permissions:
   id-token: write
 
 jobs:
-  changes:
-    name: Detect test changes
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      php: ${{ steps.paths.outputs.php }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
-        id: paths
-        with:
-          # Feature branches compare their full delta with the default branch;
-          # default-branch pushes compare the complete push, not just HEAD^.
-          base: ${{ github.event.repository.default_branch }}
-          filters: |
-            php:
-              - '**/*.php'
-              - 'src/**'
-              - 'tests/**'
-              - '**/composer.json'
-              - '**/composer.lock'
-              - '**/phpunit*.xml*'
-              - '.php-version'
-              - '.tool-versions'
-              - '.github/fixtures/**'
-              - '.github/actions/**'
-              - '.github/workflows/tests.yml'
-              - '.github/workflows/test-statuses.yml'
-
   tests:
-    needs: changes
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.actor == 'dependabot[bot]' ||
-      needs.changes.outputs.php == 'true'
     uses: php-fast-forward/dev-tools/.github/workflows/tests.yml@main
     with:
       publish-required-statuses: true
     secrets: inherit
 
   runtime-only:
-    needs: changes
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.actor == 'dependabot[bot]' ||
-      needs.changes.outputs.php == 'true'
     name: Runtime-only PHP 8.3
     runs-on: ubuntu-latest
     permissions:
@@ -77,30 +48,3 @@ jobs:
         run: composer install --no-dev --no-plugins --no-scripts --no-interaction --prefer-dist --no-progress
       - name: Exercise directory and container behavior without multibyte functions
         run: php -n -d disable_functions=mb_rtrim,mb_substr,mb_strlen tests/Runtime/smoke.php
-
-  tests-not-required:
-    name: Tests not required
-    needs: changes
-    if: >-
-      github.event_name == 'push' &&
-      github.actor != 'dependabot[bot]' &&
-      needs.changes.outputs.php == 'false'
-    runs-on: ubuntu-latest
-    permissions:
-      statuses: write
-    steps:
-      # No checkout or consumer code executes in this status-only job.
-      - name: Report that the required PHP tests do not apply
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TARGET_SHA: ${{ github.sha }}
-          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          for php_version in 8.3 8.4 8.5; do
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${TARGET_SHA}" \
-              -f state=success \
-              -f context="Run Tests (${php_version})" \
-              -f description='Not required: no PHP, test, dependency or test-workflow changes.' \
-              -f target_url="${TARGET_URL}"
-          done
-          echo 'PHP tests are not required for this change.' >> "$GITHUB_STEP_SUMMARY"
