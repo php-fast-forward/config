@@ -4,6 +4,16 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'src/**'
+      - composer.json
+      - composer.lock
+      - 'phpdoc*.xml*'
+      - '.php-version'
+      - '.tool-versions'
+      - '.github/actions/**'
+      - '.github/scripts/**'
+      - '.github/workflows/wiki.yml'
   workflow_dispatch:
 
 permissions:
