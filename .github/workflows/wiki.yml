@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - 'src/**'
+      - 'docs/**'
+      - 'README*'
       - composer.json
       - composer.lock
       - 'phpdoc*.xml*'
