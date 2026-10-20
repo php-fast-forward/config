@@ -32,7 +32,7 @@ jobs:
       source: tags
       resolve-pull-requests: true
       managed-branch: changelog/version
-      version-pr-title: 'chore(release): config {current_version} → {next_version}'
+      version-pr-title: 'chore(release): fast-forward/config v{current_version} → v{next_version}'
       automation-actor: 'github-actions[bot]'
       comment-mode: always
       prepare-release: true
