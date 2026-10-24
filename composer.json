@@ -57,11 +57,11 @@
         "allow-plugins": {
             "ergebnis/composer-normalize": true,
             "fast-forward/dev-tools": true,
+            "llm/skills": true,
             "phpdocumentor/shim": true,
             "phpro/grumphp": true,
             "phpro/grumphp-shim": true,
-            "pyrech/composer-changelogs": true,
-            "llm/skills": true
+            "pyrech/composer-changelogs": true
         },
         "platform": {
             "php": "8.3.0"
