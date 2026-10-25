@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.4] - 2026-10-25
+
+### Changed
+
+- Restore the Changelog contributor skill through the development-only Composer skill manager and its reviewed GitHub source instead of versioning generated skill copies. ([#46](https://github.com/php-fast-forward/config/pull/46))
+- Synchronize the bundled local skill automatically and trust Fast Forward Composer
+  skill donors through `fast-forward/*`.
+  Resolve Changelog contributor skills from stable `0.4.x` releases without a
+  redundant skill allowlist.
+  Load the project autoloader for PHPDoc checks when DevTools is installed as a
+  dependency.
+
+  ([#46](https://github.com/php-fast-forward/config/pull/46))
+
+- GitHub Actions(deps): Bump actions/checkout from 4 to 7
+
+  Update dependencies: `actions/checkout`.
+
+  ([#47](https://github.com/php-fast-forward/config/pull/47), @dependabot[bot])
+
+### Fixed
+
+- Show the full package name and prefixed version transition in managed release PR titles, while retaining the selected published Changelog v0 workflow channel. ([#46](https://github.com/php-fast-forward/config/pull/46))
+
 ## [1.7.3] - 2026-10-20
 
 ### Changed
@@ -174,6 +198,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support directory path strings directly in config() helper.
 
 
+[1.7.4]: https://github.com/php-fast-forward/config/compare/v1.7.3...v1.7.4
 [1.7.3]: https://github.com/php-fast-forward/config/compare/v1.7.2...v1.7.3
 [1.7.2]: https://github.com/php-fast-forward/config/compare/v1.7.1...v1.7.2
 [1.7.1]: https://github.com/php-fast-forward/config/compare/v1.7.0...v1.7.1
