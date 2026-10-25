@@ -20,7 +20,7 @@ jobs:
       pull-requests: write
       issues: read
       statuses: write
-    # Published 0.x channel, selected by the maintainer; reviewed at v0.3.0.
+    # Published 0.x channel; verified at v0.3.0 (85474de5a16bb08f83c9f30e0ed72f331a210f07).
     uses: php-fast-forward/changelog/.github/workflows/changelog.yml@v0
     with:
       base-branch: main
@@ -32,7 +32,7 @@ jobs:
       source: tags
       resolve-pull-requests: true
       managed-branch: changelog/version
-      version-pr-title: 'chore(release): v{current_version} → v{next_version}'
+      version-pr-title: 'chore(release): fast-forward/config v{current_version} → v{next_version}'
       automation-actor: 'github-actions[bot]'
       comment-mode: always
       prepare-release: true

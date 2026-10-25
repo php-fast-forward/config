@@ -198,8 +198,6 @@ class DirectoryConfig extends LaminasConfigAggregatorConfig implements ConfigInt
      *
      * @param string $directory the discovered directory path
      *
-     * @return DirectoryIterator|null
-     *
      * @throws UnexpectedValueException for root failures or unrelated directory-opening errors
      */
     private function openDirectory(string $directory): ?DirectoryIterator
