@@ -25,8 +25,6 @@ final class FileProxyStream
 
     /**
      * @param int $count
-     *
-     * @return string|false
      */
     public function stream_read(int $count): string|false
     {
