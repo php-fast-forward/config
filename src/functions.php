@@ -129,4 +129,3 @@ function configFile(
 ): ConfigInterface {
     return new PhpFileConfig(file: $file, persistent: $persistent, defaultConfig: $defaultConfig);
 }
-

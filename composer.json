@@ -33,6 +33,7 @@
     },
     "require-dev": {
         "fast-forward/dev-tools": "dev-main",
+        "llm/skills": "^1.15",
         "symfony/cache": "^7.4"
     },
     "suggest": {
@@ -56,6 +57,7 @@
         "allow-plugins": {
             "ergebnis/composer-normalize": true,
             "fast-forward/dev-tools": true,
+            "llm/skills": true,
             "phpdocumentor/shim": true,
             "phpro/grumphp": true,
             "phpro/grumphp-shim": true,
